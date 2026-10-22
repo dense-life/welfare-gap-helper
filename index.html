@@ -1,102 +1,448 @@
+
 <!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>복지틈새찾기 | 내 생활에 맞는 복지 찾기</title>
-<meta name="description" content="생활 상황을 바탕으로 확인해 볼 복지제도를 탐색하는 무료 도우미입니다.">
+<meta name="description" content="생활 상황에 맞는 복지서비스를 무료로 탐색하는 도우미입니다.">
 <style>
-:root{--ink:#1f2937;--muted:#64748b;--line:#dbe3ea;--blue:#176b87;--pale:#eef8fa;--bg:#f7fafc;--green:#26734d}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;line-height:1.6}header{background:linear-gradient(135deg,#e9f6f7,#f4f8fc);padding:32px 18px 26px;border-bottom:1px solid var(--line)}.wrap{max-width:980px;margin:auto}header .eyebrow{font-size:.82rem;color:var(--blue);font-weight:800;letter-spacing:.04em}h1{font-size:clamp(1.7rem,4vw,2.5rem);line-height:1.2;margin:8px 0}h2{font-size:1.25rem;margin:0 0 14px}p{margin:7px 0}.sub{color:#475569;max-width:700px}.notice{margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.9rem}.layout{display:grid;grid-template-columns:1fr;gap:18px;padding:22px 16px 40px}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 2px 8px #17324d08}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.field{display:flex;flex-direction:column;gap:5px}.field.full{grid-column:1/-1}label{font-weight:700;font-size:.92rem}input,select{font:inherit;border:1px solid #cbd5e1;border-radius:9px;padding:10px;background:#fff;width:100%;min-height:44px}fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin:0}.checks{display:flex;flex-wrap:wrap;gap:9px 16px}.checks label{font-weight:500;display:flex;align-items:center;gap:7px}.checks input{width:auto;min-height:auto}.hint{font-size:.82rem;color:var(--muted)}button{border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:800;cursor:pointer}.primary{background:var(--blue);color:white;width:100%;margin-top:18px}.secondary{background:#e8f1f5;color:#164e63}.resulthead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.count{color:var(--muted);font-size:.9rem}.cards{display:grid;gap:12px;margin-top:12px}.benefit{border:1px solid var(--line);border-radius:13px;padding:15px}.benefit h3{margin:0 0 6px;font-size:1.05rem}.tag{display:inline-block;border-radius:999px;background:#e8f5ef;color:var(--green);padding:3px 9px;font-size:.78rem;font-weight:800;margin:0 5px 6px 0}.tag.check{background:#fff4df;color:#8a5b0b}.benefit ul{padding-left:20px;margin:8px 0}.benefit a,.links a{color:#075985;font-weight:700}.meta{font-size:.8rem;color:var(--muted);margin-top:10px}.empty{padding:20px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px}.foot{font-size:.84rem;color:var(--muted)}.pill{display:inline-block;background:#e9eef5;padding:4px 9px;border-radius:99px;font-size:.78rem}.hide{display:none}@media(max-width:620px){.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.panel{padding:16px}}
-</style></head>
+:root{--ink:#1f2937;--muted:#64748b;--line:#dbe3ea;--blue:#176b87;--bg:#f7fafc;--green:#26734d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;line-height:1.6}
+header{background:linear-gradient(135deg,#e9f6f7,#f4f8fc);padding:32px 18px 26px;border-bottom:1px solid var(--line)}
+.wrap{max-width:980px;margin:auto}
+header .eyebrow{font-size:.82rem;color:var(--blue);font-weight:800;letter-spacing:.04em}
+h1{font-size:clamp(1.7rem,4vw,2.5rem);line-height:1.2;margin:8px 0}
+h2{font-size:1.25rem;margin:0 0 14px}
+p{margin:7px 0}
+.sub{color:#475569;max-width:700px}
+.notice{margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.9rem}
+.layout{display:grid;grid-template-columns:1fr;gap:18px;padding:22px 16px 40px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 2px 8px #17324d08}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field.full{grid-column:1/-1}
+label{font-weight:700;font-size:.92rem}
+input,select{font:inherit;border:1px solid #cbd5e1;border-radius:9px;padding:10px;background:#fff;width:100%;min-height:44px}
+select:disabled{background:#f1f5f9;color:#64748b}
+fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin:0}
+.checks{display:flex;flex-wrap:wrap;gap:9px 16px}
+.checks label{font-weight:500;display:flex;align-items:center;gap:7px}
+.checks input{width:auto;min-height:auto}
+.hint{font-size:.82rem;color:var(--muted)}
+button{border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:800;cursor:pointer}
+.primary{background:var(--blue);color:white;width:100%;margin-top:18px}
+.resulthead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.count{color:var(--muted);font-size:.9rem}
+.cards{display:grid;gap:12px;margin-top:12px}
+.benefit{border:1px solid var(--line);border-radius:13px;padding:15px}
+.benefit h3{margin:0 0 6px;font-size:1.05rem}
+.tag{display:inline-block;border-radius:999px;background:#e8f5ef;color:var(--green);padding:3px 9px;font-size:.78rem;font-weight:800;margin:0 5px 6px 0}
+.tag.check{background:#fff4df;color:#8a5b0b}
+.benefit a,.links a{color:#075985;font-weight:700}
+.meta{font-size:.8rem;color:var(--muted);margin-top:10px}
+.empty{padding:20px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px}
+.foot{font-size:.84rem;color:var(--muted)}
+@media(max-width:620px){.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.panel{padding:16px}}
+</style>
+</head>
 <body>
-<header><div class="wrap"><div class="eyebrow">무료 복지 탐색 도우미 · 초기 시제품</div><h1>복지틈새찾기</h1><p class="sub">내 생활 상황을 바탕으로 놓치고 있을지 모르는 복지 지원을 찾아보고, 무엇을 더 확인해야 하는지 정리해 드립니다.</p><div class="notice"><strong>꼭 확인해 주세요.</strong> 이 도구는 복지 후보를 찾아보는 안내용 시제품이며 정부의 자격 판정 서비스가 아닙니다. 최종 자격·금액·신청 가능 여부는 담당 기관에서 확인해야 합니다. 민감한 개인정보나 주민등록번호는 입력하지 마세요.</div></div></header>
+<header>
+ <div class="wrap">
+  <div class="eyebrow">무료 복지 탐색 도우미 · 초기 시제품</div>
+  <h1>복지틈새찾기</h1>
+  <p class="sub">내 생활 상황을 바탕으로 놓치고 있을지 모르는 복지 지원을 찾아보고, 무엇을 더 확인해야 하는지 정리해 드립니다.</p>
+  <div class="notice"><strong>꼭 확인해 주세요.</strong> 이 도구는 복지 후보를 찾아보는 안내용 시제품이며 정부의 자격 판정 서비스가 아닙니다. 최종 자격·금액·신청 가능 여부는 담당 기관에서 확인해야 합니다. 민감한 개인정보나 주민등록번호는 입력하지 마세요.</div>
+ </div>
+</header>
+
 <main class="wrap layout">
-<section class="panel"><h2>1. 생활 상황을 입력해 주세요</h2><p class="hint">모르는 항목은 ‘모름/해당 없음’을 선택해도 됩니다. 입력 내용은 이 페이지 안에서만 비교하며 서버로 전송하지 않습니다.</p>
-<div id="profile"><div class="fields">
-<div class="field"><label for="age">나이</label><select id="age"><option value="unknown">모름/선택 안 함</option><option value="under18">18세 미만</option><option value="18-39">18~39세</option><option value="40-64">40~64세</option><option value="65plus">65세 이상</option></select></div>
-<div class="field"><label for="region">거주 지역(시·도)</label><select id="region"><option value="unknown">선택 안 함</option><option>서울특별시</option><option>부산광역시</option><option>대구광역시</option><option>인천광역시</option><option>광주광역시</option><option>대전광역시</option><option>울산광역시</option><option>세종특별자치시</option><option>경기도</option><option>강원특별자치도</option><option>충청북도</option><option>충청남도</option><option>전북특별자치도</option><option>전라남도</option><option>경상북도</option><option>경상남도</option><option>제주특별자치도</option></select></div>
-<div class="field"><label for="household">함께 사는 가구원</label><select id="household"><option value="unknown">선택 안 함</option><option value="1">1명(혼자 거주)</option><option value="2">2명</option><option value="3">3명</option><option value="4plus">4명 이상</option></select></div>
-<div class="field"><label for="income">가구 소득 상황</label><select id="income"><option value="unknown">모름/판단 어려움</option><option value="low">소득이 거의 없거나 매우 적음</option><option value="unstable">소득이 불규칙함</option><option value="middle">일정한 소득이 있음</option></select></div>
-<div class="field"><label for="assets">재산 상황</label><select id="assets"><option value="unknown">모름/선택 안 함</option><option value="low">재산이 적은 편</option><option value="some">예금·차량·부동산 등이 있음</option><option value="home">본인 명의 주택이 있음</option></select></div>
-<div class="field"><label for="housing">주거 형태</label><select id="housing"><option value="unknown">선택 안 함</option><option value="own">자가</option><option value="rent">전세</option><option value="monthly">월세</option><option value="relative">친척·가족 소유 주택에 거주</option><option value="free">무상거주·기타</option><option value="unstable">주거가 불안정하거나 거처가 없음</option></select></div>
-<div class="field"><label for="rentpaid">실제로 임대료를 내나요?</label><select id="rentpaid"><option value="unknown">모름/해당 없음</option><option value="yes">예, 정기적으로 냄</option><option value="no">아니요</option><option value="sometimes">일부 부담하거나 불규칙함</option></select></div>
-<div class="field"><label for="work">일·근로 상황</label><select id="work"><option value="unknown">선택 안 함</option><option value="unable">건강·장애 등으로 일하기 어려움</option><option value="jobless">일할 수 있지만 현재 일자리가 없음</option><option value="working">일하고 있음</option><option value="care">가족 돌봄 때문에 일하기 어려움</option></select></div>
-<div class="field full"><fieldset><legend><strong>해당하는 상황을 모두 선택해 주세요</strong></legend><div class="checks">
-<label><input type="checkbox" name="needs" value="disability"> 장애가 있음</label><label><input type="checkbox" name="needs" value="chronic"> 만성질환·건강 문제</label><label><input type="checkbox" name="needs" value="care"> 일상생활에 돌봄·도움이 필요함</label><label><input type="checkbox" name="needs" value="energy"> 냉난방·전기·가스비 부담</label><label><input type="checkbox" name="needs" value="debt"> 빚·공과금 체납 등 위기 상황</label><label><input type="checkbox" name="needs" value="child"> 자녀 양육·교육 부담</label><label><input type="checkbox" name="needs" value="none"> 위 항목 해당 없음</label>
-</div></fieldset></div>
-</div><button class="primary" id="findButton" type="button">내 상황에 맞는 복지 후보 찾기</button><p id="status" class="hint" role="status" aria-live="polite">입력 후 버튼을 누르면 관련 복지 후보가 표시됩니다.</p></div></section>
-<section class="panel" id="results" aria-live="polite"><div class="resulthead"><h2>2. 확인해 볼 복지 후보</h2><span class="count" id="count">상황을 입력하면 후보가 표시됩니다.</span></div><div id="cards" class="cards"><div class="empty">아직 조건을 분석하지 않았습니다. 위에서 조건을 입력하고 버튼을 눌러 주세요. 버튼이 작동하지 않으면 파일을 내려받아 Chrome에서 직접 여세요.</div></div><p class="foot">이용 팁: 결과가 없거나 조건을 잘 모른다면 주민센터 또는 보건복지상담센터(129)에 현재 상황을 설명하고 추가 상담을 요청하세요.</p></section>
-<section class="panel"><h2>3. 공식 확인처</h2><div class="links"><p>• <a href="https://www.bokjiro.go.kr/" target="_blank" rel="noopener">복지로</a> — 복지서비스 검색·모의계산·복지멤버십 안내</p><p>• <a href="https://www.gov.kr/" target="_blank" rel="noopener">정부24</a> — 정부 서비스·민원 안내</p><p>• <a href="https://www.bojo.go.kr/" target="_blank" rel="noopener">보조금통합포털</a> — 보조금 정보 확인</p><p>• <a href="https://www.data.go.kr/" target="_blank" rel="noopener">공공데이터포털</a> — 공식 데이터·API 확인</p><p>• <a href="https://www.129.go.kr/" target="_blank" rel="noopener">보건복지상담센터 129</a> — 복지 상담</p></div><p class="meta">데이터 상태: 기본 공식 안내 후보 + GitHub Actions가 갱신한 지자체 API 후보. API 데이터 갱신은 저장소에 인증키를 설정한 뒤 활성화됩니다.</p><p class="meta">공식 데이터 연동 준비: <a href="https://www.data.go.kr/" target="_blank" rel="noopener">공공데이터포털에서 복지서비스·보조금 API 검색 및 활용신청</a> · <a href="https://www.bojo.go.kr/ga/retrieveOpnApi.do" target="_blank" rel="noopener">보조금통합포털 오픈API 안내</a>. API 인증키는 공개 HTML에 넣지 마세요.</p></section>
+<section class="panel">
+ <h2>1. 생활 상황을 입력해 주세요</h2>
+ <p class="hint">모르는 항목은 선택하지 않아도 됩니다. 입력 내용은 이 페이지 안에서만 비교하며 서버로 전송하지 않습니다.</p>
+ <div id="profile">
+  <div class="fields">
+   <div class="field">
+    <label for="age">나이</label>
+    <select id="age">
+     <option value="unknown">모름/선택 안 함</option>
+     <option value="under18">18세 미만</option>
+     <option value="18-39">18~39세</option>
+     <option value="40-64">40~64세</option>
+     <option value="65plus">65세 이상</option>
+    </select>
+   </div>
+
+   <div class="field">
+    <label for="region">거주 지역(시·도)</label>
+    <select id="region">
+     <option value="unknown">선택 안 함</option>
+     <option>서울특별시</option>
+     <option>부산광역시</option>
+     <option>대구광역시</option>
+     <option>인천광역시</option>
+     <option>광주광역시</option>
+     <option>대전광역시</option>
+     <option>울산광역시</option>
+     <option>세종특별자치시</option>
+     <option>경기도</option>
+     <option>강원특별자치도</option>
+     <option>충청북도</option>
+     <option>충청남도</option>
+     <option>전북특별자치도</option>
+     <option>전라남도</option>
+     <option>경상북도</option>
+     <option>경상남도</option>
+     <option>제주특별자치도</option>
+    </select>
+   </div>
+
+   <div class="field">
+    <label for="district">거주 지역(시·군·구)</label>
+    <select id="district" disabled>
+     <option value="unknown">시·도를 먼저 선택하세요</option>
+    </select>
+    <p class="hint">시·군·구를 선택하면 해당 지역과 시·도 전체에 해당하는 서비스를 함께 검색합니다.</p>
+   </div>
+
+   <div class="field">
+    <label for="household">함께 사는 가구원</label>
+    <select id="household">
+     <option value="unknown">선택 안 함</option>
+     <option value="1">1명(혼자 거주)</option>
+     <option value="2">2명</option>
+     <option value="3">3명</option>
+     <option value="4plus">4명 이상</option>
+    </select>
+   </div>
+
+   <div class="field">
+    <label for="income">가구 소득 상황</label>
+    <select id="income">
+     <option value="unknown">모름/판단 어려움</option>
+     <option value="low">소득이 거의 없거나 매우 적음</option>
+     <option value="unstable">소득이 불규칙함</option>
+     <option value="middle">일정한 소득이 있음</option>
+    </select>
+   </div>
+
+   <div class="field">
+    <label for="assets">재산 상황</label>
+    <select id="assets">
+     <option value="unknown">모름/선택 안 함</option>
+     <option value="low">재산이 적은 편</option>
+     <option value="some">예금·차량·부동산 등이 있음</option>
+     <option value="home">본인 명의 주택이 있음</option>
+    </select>
+   </div>
+
+   <div class="field">
+    <label for="housing">주거 형태</label>
+    <select id="housing">
+     <option value="unknown">선택 안 함</option>
+     <option value="own">자가</option>
+     <option value="rent">전세</option>
+     <option value="monthly">월세</option>
+     <option value="relative">친척·가족 소유 주택에 거주</option>
+     <option value="free">무상거주·기타</option>
+     <option value="unstable">주거가 불안정하거나 거처가 없음</option>
+    </select>
+   </div>
+
+   <div class="field">
+    <label for="rentpaid">실제로 임대료를 내나요?</label>
+    <select id="rentpaid">
+     <option value="unknown">모름/해당 없음</option>
+     <option value="yes">예, 정기적으로 냄</option>
+     <option value="no">아니요</option>
+     <option value="sometimes">일부 부담하거나 불규칙함</option>
+    </select>
+   </div>
+
+   <div class="field">
+    <label for="work">일·근로 상황</label>
+    <select id="work">
+     <option value="unknown">선택 안 함</option>
+     <option value="unable">건강·장애 등으로 일하기 어려움</option>
+     <option value="jobless">일할 수 있지만 현재 일자리가 없음</option>
+     <option value="working">일하고 있음</option>
+     <option value="care">가족 돌봄 때문에 일하기 어려움</option>
+    </select>
+   </div>
+
+   <div class="field full">
+    <fieldset>
+     <legend><strong>해당하는 상황을 모두 선택해 주세요</strong></legend>
+     <div class="checks">
+      <label><input type="checkbox" name="needs" value="disability"> 장애가 있음</label>
+      <label><input type="checkbox" name="needs" value="chronic"> 만성질환·건강 문제</label>
+      <label><input type="checkbox" name="needs" value="care"> 일상생활에 돌봄·도움이 필요함</label>
+      <label><input type="checkbox" name="needs" value="energy"> 냉난방·전기·가스비 부담</label>
+      <label><input type="checkbox" name="needs" value="debt"> 빚·공과금 체납 등 위기 상황</label>
+      <label><input type="checkbox" name="needs" value="child"> 자녀 양육·교육 부담</label>
+      <label><input type="checkbox" name="needs" value="none"> 위 항목 해당 없음</label>
+     </div>
+    </fieldset>
+   </div>
+  </div>
+
+  <button class="primary" id="findButton" type="button">내 상황에 맞는 복지 후보 찾기</button>
+  <p id="status" class="hint" role="status" aria-live="polite">입력 후 버튼을 누르면 관련 복지 후보가 표시됩니다.</p>
+ </div>
+</section>
+
+<section class="panel" id="results" aria-live="polite">
+ <div class="resulthead">
+  <h2>2. 확인해 볼 복지 후보</h2>
+  <span class="count" id="count">상황을 입력하면 후보가 표시됩니다.</span>
+ </div>
+ <div id="cards" class="cards">
+  <div class="empty">아직 조건을 분석하지 않았습니다. 위에서 조건을 입력하고 버튼을 눌러 주세요.</div>
+ </div>
+ <p class="foot">결과가 없거나 조건을 잘 모른다면 주민센터 또는 보건복지상담센터(129)에 추가 상담을 요청하세요.</p>
+</section>
+
+<section class="panel">
+ <h2>3. 공식 확인처</h2>
+ <div class="links">
+  <p>• <a href="https://www.bokjiro.go.kr/" target="_blank" rel="noopener">복지로</a> — 복지서비스 검색·모의계산·복지멤버십 안내</p>
+  <p>• <a href="https://www.gov.kr/" target="_blank" rel="noopener">정부24</a> — 정부 서비스·민원 안내</p>
+  <p>• <a href="https://www.bojo.go.kr/" target="_blank" rel="noopener">보조금통합포털</a> — 보조금 정보 확인</p>
+  <p>• <a href="https://www.data.go.kr/" target="_blank" rel="noopener">공공데이터포털</a> — 공식 데이터·API 확인</p>
+  <p>• <a href="https://www.129.go.kr/" target="_blank" rel="noopener">보건복지상담센터 129</a> — 복지 상담</p>
+ </div>
+ <p class="meta">데이터 상태: GitHub Actions가 갱신한 지자체 API 후보를 불러옵니다. 실제 수록 범위와 최신성은 데이터 파일을 확인해야 합니다.</p>
+ <p class="meta">API 인증키는 공개 HTML에 넣지 마세요.</p>
+</section>
 </main>
+
 <script>
-const policies=[];
-// GitHub Actions가 주기적으로 갱신한 공식 지자체 복지서비스 후보를 읽습니다.
+const policies = [];
 let apiLoadState = '공식 API 데이터 확인 중';
-async function loadApiPrograms(){
-  try {
-    const response = await fetch('./data/policies.json', {cache:'no-store'});
-    if(!response.ok) throw new Error('정책 데이터 파일을 불러오지 못했습니다.');
-    const data = await response.json();
-    const allRows = Array.isArray(data.programs) ? data.programs : (Array.isArray(data.api_programs) ? data.api_programs : []);
-    const rows = allRows.filter(row => row && (row.api_record === true || String(row.id || '').startsWith('api-')));
-    if (!rows.length) {
-      apiLoadState = '아직 수집된 지자체 API 데이터가 없습니다. GitHub Actions에서 수집 작업을 실행하고 성공 여부를 확인해 주세요.';
-      const status = document.querySelector('#status');
-      if (status) status.textContent = apiLoadState;
-      return;
-    }
-    const known = new Set(policies.map(x=>x.id));
-    for(const row of rows){
-      if(!row || !row.id || known.has(row.id)) continue;
-      const region = row.region || '';
-      policies.push({
-        id: row.id, title: row.title || row.name || '지자체 복지서비스',
-        category: row.category || '지역 복지',
-        url: row.url || '',
-        source: row.source || '한국사회보장정보원 지자체복지서비스 API',
-        updated: row.updated || 'API 갱신일 미제공',
-        why: row.description || row.summary || '공식 API 목록에서 확인된 사업입니다. 상세 조건은 담당 기관에 확인해야 합니다.',
-        checks: [row.target && ('지원 대상: '+row.target), row.criteria && ('선정 기준: '+row.criteria), row.support && ('지원 내용: '+row.support), row.application && ('신청 방법: '+row.application), row.contact && ('문의처: '+row.contact)].filter(Boolean), detail: row,
-        apiRecord: true, region,
-        match: p => {
-          const selectedRegion = p.region || '';
-          const regionMatch = !selectedRegion || selectedRegion === 'unknown' || !region || region.includes(selectedRegion);
-          const needsMatch = p.needs.length > 0 || p.income === 'low' || p.income === 'unstable' || p.work === 'unable' || p.work === 'jobless' || ['rent','monthly','relative','free','unstable'].includes(p.housing);
-          return regionMatch && needsMatch;
-        }, uncertain:true
-      });
-    }
-    apiLoadState = rows.length ? `지자체 API 데이터 ${rows.length}건 불러옴(전국 전체 수록 보장 아님)` : 'API 데이터가 아직 없습니다. 인증키 등록 후 자동 수집을 실행해야 합니다.';
-  } catch(err) {
-    apiLoadState = 'API 데이터 파일을 읽지 못했습니다. 자동 수집 상태를 확인하세요.';
-    console.warn('API candidate load failed:', err);
-  }
-  const status = document.querySelector('#status');
-  if(status) status.textContent = apiLoadState + '. 입력 후 복지 후보 찾기를 눌러 주세요.';
+
+const regionSelect = document.querySelector('#region');
+const districtSelect = document.querySelector('#district');
+
+const districtsByRegion = {
+ '서울특별시':['종로구','중구','용산구','성동구','광진구','동대문구','중랑구','성북구','강북구','도봉구','노원구','은평구','서대문구','마포구','양천구','강서구','구로구','금천구','영등포구','동작구','관악구','서초구','강남구','송파구','강동구'],
+ '부산광역시':['중구','서구','동구','영도구','부산진구','동래구','남구','북구','해운대구','사하구','금정구','강서구','연제구','수영구','사상구','기장군'],
+ '대구광역시':['중구','동구','서구','남구','북구','수성구','달서구','달성군','군위군'],
+ '인천광역시':['중구','동구','미추홀구','연수구','남동구','부평구','계양구','서구','강화군','옹진군'],
+ '광주광역시':['동구','서구','남구','북구','광산구'],
+ '대전광역시':['동구','중구','서구','유성구','대덕구'],
+ '울산광역시':['중구','남구','동구','북구','울주군'],
+ '세종특별자치시':['세종특별자치시'],
+ '경기도':['수원시','용인시','고양시','화성시','성남시','부천시','남양주시','안산시','평택시','안양시','시흥시','파주시','김포시','의정부시','광주시','하남시','광명시','군포시','양주시','오산시','이천시','안성시','구리시','의왕시','포천시','여주시','동두천시','과천시','가평군','양평군','연천군'],
+ '강원특별자치도':['춘천시','원주시','강릉시','동해시','태백시','속초시','삼척시','홍천군','횡성군','영월군','평창군','정선군','철원군','화천군','양구군','인제군','고성군','양양군'],
+ '충청북도':['청주시','충주시','제천시','보은군','옥천군','영동군','증평군','진천군','괴산군','음성군','단양군'],
+ '충청남도':['천안시','공주시','보령시','아산시','서산시','논산시','계룡시','당진시','금산군','부여군','서천군','청양군','홍성군','예산군','태안군'],
+ '전북특별자치도':['전주시','군산시','익산시','정읍시','남원시','김제시','완주군','진안군','무주군','장수군','임실군','순창군','고창군','부안군'],
+ '전라남도':['목포시','여수시','순천시','나주시','광양시','담양군','곡성군','구례군','고흥군','보성군','화순군','장흥군','강진군','해남군','영암군','무안군','함평군','영광군','장성군','완도군','진도군','신안군'],
+ '경상북도':['포항시','경주시','김천시','안동시','구미시','영주시','영천시','상주시','문경시','경산시','의성군','청송군','영양군','영덕군','청도군','고령군','성주군','칠곡군','예천군','봉화군','울진군','울릉군'],
+ '경상남도':['창원시','진주시','통영시','사천시','김해시','밀양시','거제시','양산시','의령군','함안군','창녕군','고성군','남해군','하동군','산청군','함양군','거창군','합천군'],
+ '제주특별자치도':['제주시','서귀포시']
+};
+
+function updateDistricts() {
+ const region = regionSelect.value;
+ districtSelect.innerHTML = '';
+
+ if (!region || region === 'unknown') {
+  districtSelect.disabled = true;
+  districtSelect.add(new Option('시·도를 먼저 선택하세요', 'unknown'));
+  return;
+ }
+
+ districtSelect.disabled = false;
+ districtSelect.add(new Option('시·군·구 전체', 'unknown'));
+
+ (districtsByRegion[region] || []).forEach(name => {
+  districtSelect.add(new Option(name, name));
+ });
 }
-loadApiPrograms();
-function profile(){return {age:document.querySelector('#age').value,region:document.querySelector('#region').value,household:document.querySelector('#household').value,income:document.querySelector('#income').value,assets:document.querySelector('#assets').value,housing:document.querySelector('#housing').value,rentpaid:document.querySelector('#rentpaid').value,work:document.querySelector('#work').value,needs:[...document.querySelectorAll('input[name="needs"]:checked')].map(x=>x.value).filter(x=>x!=='none')}}
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function runSearch(){
- const status=document.querySelector('#status');
- const cards=document.querySelector('#cards');
+
+regionSelect.addEventListener('change', updateDistricts);
+updateDistricts();
+
+function normalizeRegion(value) {
+ return String(value || '')
+  .replace(/\s+/g,'')
+  .replace(/특별자치도|특별자치시|특별시|광역시|도/g, match => match);
+}
+
+function matchesRegion(rowRegion, selectedRegion, selectedDistrict) {
+ const raw = String(rowRegion || '').trim();
+ if (!selectedRegion || selectedRegion === 'unknown') return true;
+ if (!raw) return false;
+
+ const serviceRegion = normalizeRegion(raw);
+ const province = normalizeRegion(selectedRegion);
+ const district = String(selectedDistrict || '').trim();
+
+ // 서비스의 지역 정보에 선택한 시·도가 포함되어야 합니다.
+ if (!serviceRegion.includes(province)) return false;
+
+ // 시·군·구를 선택하지 않았으면 해당 시·도 전체를 검색합니다.
+ if (!district || district === 'unknown') return true;
+
+ // 해당 시·군·구 서비스와 시·도 전체 서비스를 함께 포함합니다.
+ const districtCompact = district.replace(/\s+/g,'');
+ const isProvinceWide = serviceRegion === province;
+ const isDistrictSpecific = serviceRegion.includes(districtCompact);
+
+ return isProvinceWide || isDistrictSpecific;
+}
+
+async function loadApiPrograms() {
  try {
-  status.textContent='입력한 조건을 분석하고 있습니다… ' + apiLoadState;
-  const p=profile();
-  let found=policies.filter(x=>x.match(p));
-  if(!found.length) throw new Error('현재 입력 조건에 맞는 후보가 없습니다. 거주 지역을 선택 안 함으로 바꾸거나 다른 조건으로 다시 검색해 보세요. 후보가 계속 없다면 GitHub Actions에서 API 수집이 성공했는지 확인해 주세요.');
-  document.querySelector('#count').textContent=`검토 후보 ${found.length}개 · 자격 확정 아님`;
-  cards.innerHTML=found.map(x=>{const d=x.detail||{};const link=x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener">공식 신청·안내 사이트 열기 ↗</a>`:'<span class="meta">API에서 직접 신청 URL을 제공하지 않았습니다. 아래 문의처 또는 지자체 공식 홈페이지에서 신청 경로를 확인하세요.</span>';const details=[['지원 내용',d.support],['지원 대상',d.target],['선정 기준',d.criteria],['신청 방법',d.application],['문의처',d.contact],['상세 설명',d.description||d.summary]].filter(a=>a[1]);return `<article class="benefit"><span class="tag">${esc(x.category)}</span><span class="tag check">신청 자격 확인 필요</span><h3>${esc(x.title)}</h3><p class="meta">지역: ${esc(x.region||'API 지역 정보 미제공')}</p>${details.map(a=>`<p><strong>${esc(a[0])}</strong><br>${esc(a[1])}</p>`).join('')||`<p>${esc(x.why||'상세정보가 API에서 제공되지 않았습니다.')}</p>`}<p>${link}</p><div class="meta">출처: ${esc(x.source)} · 데이터 갱신일: ${esc(x.updated)}</div></article>`}).join('');
-  status.textContent='분석이 끝났습니다. 아래 후보는 자격 확정이 아닌 확인 목록입니다.';
+  const response = await fetch('./data/policies.json', {cache:'no-store'});
+  if (!response.ok) throw new Error('정책 데이터 파일을 불러오지 못했습니다.');
+
+  const data = await response.json();
+  const allRows = Array.isArray(data.programs)
+   ? data.programs
+   : (Array.isArray(data.api_programs) ? data.api_programs : []);
+
+  const rows = allRows.filter(row =>
+   row && (row.api_record === true || String(row.id || '').startsWith('api-'))
+  );
+
+  if (!rows.length) {
+   apiLoadState = '수집된 지자체 API 데이터가 없습니다. GitHub Actions의 수집 작업을 확인해 주세요.';
+   document.querySelector('#status').textContent = apiLoadState;
+   return;
+  }
+
+  const known = new Set(policies.map(x=>x.id));
+
+  for (const row of rows) {
+   if (!row || !row.id || known.has(row.id)) continue;
+
+   const region = row.region || '';
+
+   policies.push({
+    id:row.id,
+    title:row.title || row.name || '지자체 복지서비스',
+    category:row.category || '지역 복지',
+    url:row.url || '',
+    source:row.source || '한국사회보장정보원 지자체복지서비스 API',
+    updated:row.updated || 'API 갱신일 미제공',
+    why:row.description || row.summary || '공식 API 목록에서 확인된 사업입니다. 상세 조건은 담당 기관에 확인해야 합니다.',
+    detail:row,
+    apiRecord:true,
+    region,
+    match:p=>{
+     const regionMatch = matchesRegion(region,p.region,p.district);
+     const needsMatch =
+      p.needs.length > 0 ||
+      p.income === 'low' ||
+      p.income === 'unstable' ||
+      p.work === 'unable' ||
+      p.work === 'jobless' ||
+      ['rent','monthly','relative','free','unstable'].includes(p.housing);
+
+     return regionMatch && needsMatch;
+    },
+    uncertain:true
+   });
+  }
+
+  apiLoadState = `지자체 API 데이터 ${rows.length}건을 읽었습니다. 전국 전체 수록을 보장하지 않습니다.`;
+ } catch (err) {
+  apiLoadState = 'API 데이터 파일을 읽지 못했습니다. 자동 수집 상태를 확인하세요.';
+  console.warn('API 후보 불러오기 오류:',err);
+ }
+
+ const status = document.querySelector('#status');
+ if (status) status.textContent = apiLoadState + ' 입력 후 복지 후보 찾기를 눌러 주세요.';
+}
+
+function profile() {
+ return {
+  age:document.querySelector('#age').value,
+  region:regionSelect.value,
+  district:districtSelect.value,
+  household:document.querySelector('#household').value,
+  income:document.querySelector('#income').value,
+  assets:document.querySelector('#assets').value,
+  housing:document.querySelector('#housing').value,
+  rentpaid:document.querySelector('#rentpaid').value,
+  work:document.querySelector('#work').value,
+  needs:[...document.querySelectorAll('input[name="needs"]:checked')]
+   .map(x=>x.value).filter(x=>x!=='none')
+ };
+}
+
+function esc(s) {
+ return String(s ?? '').replace(/[&<>"']/g,c=>({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+ }[c]));
+}
+
+function runSearch() {
+ const status = document.querySelector('#status');
+ const cards = document.querySelector('#cards');
+
+ try {
+  status.textContent = '입력한 조건을 분석하고 있습니다… ' + apiLoadState;
+  const p = profile();
+  const found = policies.filter(x=>x.match(p));
+
+  if (!found.length) {
+   throw new Error('현재 조건에 맞는 후보가 없습니다. 시·군·구 또는 시·도 선택을 바꾸어 다시 검색해 보세요. 데이터가 충분히 수집되었는지도 확인해 주세요.');
+  }
+
+  document.querySelector('#count').textContent =
+   `검토 후보 ${found.length}개 · 자격 확정 아님`;
+
+  cards.innerHTML = found.map(x=>{
+   const d = x.detail || {};
+   const link = x.url
+    ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">공식 신청·안내 사이트 열기 ↗</a>`
+    : '<span class="meta">API에서 직접 신청 URL을 제공하지 않았습니다. 문의처 또는 지자체 공식 홈페이지에서 신청 경로를 확인하세요.</span>';
+
+   const details = [
+    ['지원 내용',d.support],
+    ['지원 대상',d.target],
+    ['선정 기준',d.criteria],
+    ['신청 방법',d.application],
+    ['문의처',d.contact],
+    ['상세 설명',d.description || d.summary]
+   ].filter(a=>a[1]);
+
+   return `<article class="benefit">
+    <span class="tag">${esc(x.category)}</span>
+    <span class="tag check">신청 자격 확인 필요</span>
+    <h3>${esc(x.title)}</h3>
+    <p class="meta">지역: ${esc(x.region || 'API 지역 정보 미제공')}</p>
+    ${details.map(a=>`<p><strong>${esc(a[0])}</strong><br>${esc(a[1])}</p>`).join('') || `<p>${esc(x.why || '상세정보가 API에서 제공되지 않았습니다.')}</p>`}
+    <p>${link}</p>
+    <div class="meta">출처: ${esc(x.source)} · 데이터 갱신일: ${esc(x.updated)}</div>
+   </article>`;
+  }).join('');
+
+  status.textContent = '분석이 끝났습니다. 아래 후보는 자격 확정이 아닌 확인 목록입니다.';
   document.querySelector('#results').scrollIntoView({behavior:'smooth',block:'start'});
  } catch(err) {
   console.error('복지 후보 표시 오류:',err);
-  document.querySelector('#count').textContent='결과 표시 중 문제가 발생했습니다.';
-  cards.innerHTML='<div class="empty"><strong>복지 후보를 표시하지 못했습니다.</strong><br>아래 오류 설명을 확인해 주세요. API 데이터가 없으면 먼저 GitHub Actions에서 수집 작업을 성공시켜야 합니다.</div>'; 
-  status.textContent='오류 내용: '+(err && err.message ? err.message : '알 수 없는 오류');
+  document.querySelector('#count').textContent = '결과 표시 중 문제가 발생했습니다.';
+  cards.innerHTML = '<div class="empty"><strong>복지 후보를 표시하지 못했습니다.</strong><br>지역 선택이나 데이터 수집 상태를 확인해 주세요.</div>';
+  status.textContent = '오류 내용: ' + (err && err.message ? err.message : '알 수 없는 오류');
  }
 }
-document.querySelector('#findButton').addEventListener('click',runSearch);
-// 키보드로 폼을 제출하는 환경도 지원
- document.querySelectorAll('#profile select').forEach(el=>el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();runSearch();}}));
 
-</script></body></html>
+document.querySelector('#findButton').addEventListener('click',runSearch);
+document.querySelectorAll('#profile select').forEach(el=>{
+ el.addEventListener('keydown',e=>{
+  if (e.key === 'Enter') {
+   e.preventDefault();
+   runSearch();
+  }
+ });
+});
+
+loadApiPrograms();
+</script>
+</body>
+</html>
