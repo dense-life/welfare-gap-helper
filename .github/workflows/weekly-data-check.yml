@@ -1,1 +1,46 @@
 
+name: Weekly welfare API sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 18 * * 0"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Check required files
+        run: |
+          test -f scripts/validate_data.py
+          test -f data/policies.json
+
+      - name: Verify API key is configured
+        env:
+          WELFARE_API_KEY: ${{ secrets.WELFARE_API_KEY }}
+        run: |
+          if [ -z "$WELFARE_API_KEY" ]; then
+            echo "WELFARE_API_KEY secret is missing."
+            exit 1
+          fi
+          echo "API key secret is configured."
+
+      - name: Validate current data
+        run: python scripts/validate_data.py
+
