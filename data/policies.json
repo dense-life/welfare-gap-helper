@@ -1,0 +1,37 @@
+{
+  "schema_version": 4,
+  "dataset_status": "official_api_sync_empty",
+  "generated_at": "2026-10-21",
+  "notice": "아직 실제 지자체 API 수집 결과가 없습니다. GitHub Actions에서 수집 작업을 성공적으로 실행한 뒤 실제 API 후보가 표시됩니다.",
+  "programs": [],
+  "official_sources": [
+    {
+      "name": "복지로",
+      "url": "https://www.bokjiro.go.kr/"
+    },
+    {
+      "name": "정부24 보조금24",
+      "url": "https://www.gov.kr/portal/rcvfvrSvc/main/nonLogin"
+    },
+    {
+      "name": "보조금통합포털 오픈API 안내",
+      "url": "https://www.bojo.go.kr/ga/retrieveOpnApi.do"
+    },
+    {
+      "name": "공공데이터포털",
+      "url": "https://www.data.go.kr/"
+    },
+    {
+      "name": "보건복지상담센터 129",
+      "url": "https://www.129.go.kr/"
+    }
+  ],
+  "refresh_plan": {
+    "frequency": "weekly via GitHub Actions",
+    "provider": "한국사회보장정보원 지자체복지서비스 API",
+    "paid_services": false,
+    "status": "waiting_for_first_successful_sync"
+  },
+  "api_count": 0,
+  "coverage_note": "수집 전 상태입니다. 실제 수집 후에도 API 제공 범위와 수집 조건 때문에 전국 모든 사업이 포함된다고 보장하지 않습니다."
+}
