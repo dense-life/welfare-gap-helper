@@ -18,11 +18,11 @@ BASE_URL = (
     "B554287/NationalWelfareInformationsV001"
 )
 LIST_URL = BASE_URL + "/NationalWelfarelistV001"
-DETAIL_URL = BASE_URL + "/NationalWelfaredetailedV001"
 
-MAX_PAGES = 20
-ROWS_PER_PAGE = 100
-MAX_DETAILS = 40
+# 우선 목록 API만 최소 조건으로 시험한다.
+MAX_PAGES = 1
+ROWS_PER_PAGE = 10
+MAX_DETAILS = 0
 
 
 def log(message):
@@ -38,22 +38,7 @@ def local_name(tag):
     return tag.split("}")[-1]
 
 
-def child_text(element, names):
-    """직계 자식 요소에서 일치하는 이름의 값을 찾는다."""
-    if isinstance(names, str):
-        names = [names]
-
-    for child in list(element):
-        if local_name(child.tag) in names:
-            value = "".join(child.itertext()).strip()
-            if value:
-                return value
-
-    return ""
-
-
 def find_text(element, names):
-    """하위 요소 전체에서 일치하는 이름의 값을 찾는다."""
     if isinstance(names, str):
         names = [names]
 
@@ -66,12 +51,24 @@ def find_text(element, names):
     return ""
 
 
+def child_text(element, names):
+    if isinstance(names, str):
+        names = [names]
+
+    for child in list(element):
+        if local_name(child.tag) in names:
+            value = "".join(child.itertext()).strip()
+            if value:
+                return value
+
+    return ""
+
+
 def request_xml(url, params):
-    """공공데이터 API를 호출하고 XML 응답을 반환한다."""
+    """API 요청 후 XML 응답을 반환한다."""
     request_params = dict(params)
 
-    # 인증키가 이미 URL 인코딩된 형태여도
-    # 중복 인코딩되지 않도록 정규화한다.
+    # 인증키의 URL 인코딩 중복을 방지한다.
     if "serviceKey" in request_params:
         request_params["serviceKey"] = urllib.parse.unquote(
             str(request_params["serviceKey"])
@@ -92,8 +89,8 @@ def request_xml(url, params):
     except urllib.error.HTTPError as exc:
         body = exc.read().decode(
             "utf-8", errors="replace"
-        )[:1000]
-        fail(f"API HTTP 오류 {exc.code}: {body}")
+        )[:1500]
+        fail(f"HTTP 오류 {exc.code}: {body}")
 
     except urllib.error.URLError as exc:
         fail(f"API 연결 오류: {exc.reason}")
@@ -105,21 +102,22 @@ def request_xml(url, params):
         root = ET.fromstring(raw)
 
     except ET.ParseError as exc:
-        preview = raw[:500].decode(
+        preview = raw[:1000].decode(
             "utf-8", errors="replace"
         )
-        fail(
-            f"XML 응답을 해석할 수 없습니다: {exc}; "
-            f"응답 일부: {preview}"
-        )
+        fail(f"XML 해석 실패: {exc}; 응답 일부: {preview}")
 
     result_code = find_text(root, "resultCode")
     result_message = find_text(root, "resultMessage")
 
-    if result_code and result_code not in ("00", "0000", "0"):
+    log(
+        f"API 응답 코드: {result_code or '(없음)'} / "
+        f"메시지: {result_message or '(없음)'}"
+    )
+
+    if result_code and result_code not in ("0", "00", "0000"):
         fail(
-            f"API가 오류를 반환했습니다. "
-            f"resultCode={result_code}, "
+            f"API 오류 resultCode={result_code}, "
             f"resultMessage={result_message}"
         )
 
@@ -127,7 +125,6 @@ def request_xml(url, params):
 
 
 def get_items(root):
-    """응답에서 복지서비스 항목을 찾는다."""
     return [
         element
         for element in root.iter()
@@ -140,7 +137,6 @@ def get_items(root):
 
 
 def normalize_program(item):
-    """API 응답을 프로그램 데이터 구조로 변환한다."""
     service_id = (
         child_text(item, ["servId", "servID", "serviceId"])
         or find_text(item, ["servId", "servID", "serviceId"])
@@ -171,12 +167,8 @@ def normalize_program(item):
     }
 
     detail = {
-        key: val
-        for key, val in detail.items()
-        if val
+        key: val for key, val in detail.items() if val
     }
-
-    url = value("servDtlLink", "servUrl", "url")
 
     return {
         "id": f"central-{service_id}",
@@ -186,7 +178,7 @@ def normalize_program(item):
         "program_level": "central",
         "api_record": True,
         "region": "전국",
-        "url": url,
+        "url": value("servDtlLink", "servUrl", "url"),
         "detail": detail,
     }
 
@@ -197,110 +189,49 @@ def main():
     ).strip()
 
     if not api_key:
-        fail(
-            "CENTRAL_WELFARE_API_KEY 환경 변수가 "
-            "설정되지 않았습니다."
-        )
+        fail("CENTRAL_WELFARE_API_KEY 환경 변수가 없습니다.")
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-
     programs_by_id = {}
 
-    log("중앙부처 복지서비스 목록 API 호출을 시작합니다.")
+    log("중앙부처 복지서비스 목록 API 시험을 시작합니다.")
+    log("요청 조건: callTp=L, pageNo=1, numOfRows=10")
 
-    for page in range(1, MAX_PAGES + 1):
-        root = request_xml(
-            LIST_URL,
-            {
-                "serviceKey": api_key,
-                "callTp": "L",
-                "pageNo": page,
-                "numOfRows": ROWS_PER_PAGE,
-            },
+    root = request_xml(
+        LIST_URL,
+        {
+            "serviceKey": api_key,
+            "callTp": "L",
+            "pageNo": 1,
+            "numOfRows": ROWS_PER_PAGE,
+        },
+    )
+
+    items = get_items(root)
+
+    if not items:
+        fail(
+            "목록 응답에 복지서비스 항목이 없습니다. "
+            "응답 구조와 API 매개변수를 확인해야 합니다."
         )
 
-        items = get_items(root)
+    for item in items:
+        program = normalize_program(item)
 
-        if not items:
-            if page == 1:
-                fail(
-                    "목록 응답에서 서비스 항목을 찾지 못했습니다. "
-                    "API 응답 구조와 요청 매개변수를 확인해야 합니다."
-                )
-            break
-
-        added = 0
-
-        for item in items:
-            program = normalize_program(item)
-
-            if program:
-                programs_by_id[program["servId"]] = program
-                added += 1
-
-        log(
-            f"목록 {page}페이지: "
-            f"응답 항목 {len(items)}개, "
-            f"유효 항목 {added}개"
-        )
-
-        total_count_text = find_text(root, "totalCount")
-
-        try:
-            total_count = int(total_count_text)
-        except (TypeError, ValueError):
-            total_count = 0
-
-        if total_count and page * ROWS_PER_PAGE >= total_count:
-            break
-
-        if len(items) < ROWS_PER_PAGE:
-            break
-
-        time.sleep(0.2)
+        if program:
+            programs_by_id[program["servId"]] = program
 
     programs = list(programs_by_id.values())
 
     if not programs:
-        fail("목록 API에서 유효한 복지서비스를 수집하지 못했습니다.")
+        fail("목록 응답에서 유효한 서비스 ID와 이름을 찾지 못했습니다.")
 
-    log(f"목록 수집 완료: {len(programs)}개 서비스")
+    total_count_text = find_text(root, "totalCount")
 
-    # API 호출량을 고려해 최대 40개 서비스의 상세 정보를 조회한다.
-    detail_count = min(MAX_DETAILS, len(programs))
-
-    for index in range(detail_count):
-        program = programs[index]
-
-        root = request_xml(
-            DETAIL_URL,
-            {
-                "serviceKey": api_key,
-                "callTp": "D",
-                "servId": program["servId"],
-            },
-        )
-
-        items = get_items(root)
-
-        if items:
-            detail_program = normalize_program(items[0])
-
-            if detail_program:
-                program["detail"].update(
-                    detail_program.get("detail", {})
-                )
-
-                if detail_program.get("url"):
-                    program["url"] = detail_program["url"]
-
-        if (index + 1) % 10 == 0 or index + 1 == detail_count:
-            log(
-                f"상세 정보 조회: "
-                f"{index + 1}/{detail_count}"
-            )
-
-        time.sleep(0.2)
+    try:
+        total_count = int(total_count_text)
+    except (TypeError, ValueError):
+        total_count = len(programs)
 
     output = {
         "schema_version": 1,
@@ -308,7 +239,7 @@ def main():
         "source": "한국사회보장정보원 중앙부처복지서비스 API",
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "api_count": len(programs),
-        "detail_sample_count": detail_count,
+        "detail_sample_count": MAX_DETAILS,
         "programs": programs,
     }
 
@@ -322,10 +253,12 @@ def main():
         temp_file.replace(DATA_FILE)
 
     except OSError as exc:
-        fail(f"JSON 파일 저장 실패: {exc}")
+        fail(f"JSON 저장 실패: {exc}")
 
-    log(f"수집 완료: {DATA_FILE}")
-    log(f"중앙부처 복지서비스 {len(programs)}개 저장 완료")
+    log(f"목록 시험 성공: 유효 서비스 {len(programs)}개")
+    log(f"API 전체 건수(응답 기준): {total_count}")
+    log(f"파일 저장 완료: {DATA_FILE}")
+    log("상세 API는 이번 시험에서 호출하지 않았습니다.")
 
 
 if __name__ == "__main__":
