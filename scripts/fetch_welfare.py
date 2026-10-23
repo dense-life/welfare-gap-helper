@@ -3,7 +3,12 @@
 
 The API key must be provided as WELFARE_API_KEY.
 This is a bounded discovery sync, not a guarantee of every local program.
-If all list requests fail, the existing output JSON is preserved.
+
+Safety features:
+- Preserve existing records that are missing from the latest list results.
+- Preserve existing details when a detail request fails or returns empty data.
+- Stop detail requests immediately when a request quota error is detected.
+- Preserve the existing JSON if every list request fails.
 """
 
 import json
@@ -37,7 +42,7 @@ RETRY_DELAY = 2
 ROWS_PER_PAGE = 100
 MAX_PAGES_PER_QUERY = 5
 
-# 한 번 실행할 때 상세정보를 새로 조회하는 최대 건수
+# Maximum number of new detail requests per run.
 MAX_DETAIL_RECORDS = 20
 DETAIL_DELAY = 0.2
 
@@ -53,6 +58,16 @@ QUERIES = [
     ("법률", "140"),
     ("금융", "130"),
 ]
+
+DETAIL_FIELDS = (
+    "description",
+    "target",
+    "criteria",
+    "support",
+    "application",
+    "contact",
+    "official_urls",
+)
 
 
 def log(message):
@@ -80,17 +95,14 @@ def txt(node, names):
 
 
 def request(url, params, label):
-    """Request XML with bounded retries.
-
-    HTTP 429 is not retried because it commonly indicates
-    a request limit. The caller can stop further detail requests.
-    """
-    full_url = url + "?" + urllib.parse.urlencode(params)
+    """Request XML with bounded retries and quota-error detection."""
+    request_params = dict(params)
+    full_url = url + "?" + urllib.parse.urlencode(request_params)
 
     req = urllib.request.Request(
         full_url,
         headers={
-            "User-Agent": "welfare-gap-helper/2.2",
+            "User-Agent": "welfare-gap-helper/2.3",
             "Accept": "application/xml,text/xml,*/*",
         },
     )
@@ -115,6 +127,14 @@ def request(url, params, label):
             code = txt(root, ["resultCode"])
             message = txt(root, ["resultMsg", "resultMessage"])
 
+            # Some APIs return quota errors inside XML with HTTP 200.
+            error_text = f"{code} {message}".lower()
+
+            if is_quota_error_text(error_text):
+                raise RuntimeError(
+                    f"API_LIMIT_EXCEEDED: code={code}, message={message}"
+                )
+
             if code and code not in ("0", "00", "0000"):
                 raise RuntimeError(
                     f"API 응답 오류 code={code}, message={message}"
@@ -131,13 +151,12 @@ def request(url, params, label):
                 f"HTTP {exc.code}: {body}"
             )
 
-            # 호출 제한은 짧은 재시도로 해결되지 않으므로 즉시 종료
             if exc.code == 429:
                 raise RuntimeError(
                     f"API_LIMIT_EXCEEDED: {last_error}"
                 ) from exc
 
-            # 인증·요청 오류는 재시도하지 않음
+            # Retry only temporary server-side errors.
             if exc.code not in (500, 502, 503, 504):
                 break
 
@@ -150,12 +169,7 @@ def request(url, params, label):
         ) as exc:
             last_error = exc
 
-            error_text = str(exc).lower()
-            if (
-                "returnreasoncode 22" in error_text
-                or "limited_number_of_service_requests" in error_text
-                or "일일 서비스 요청제한" in error_text
-            ):
+            if is_quota_error_text(str(exc).lower()):
                 raise RuntimeError(
                     f"API_LIMIT_EXCEEDED: {exc}"
                 ) from exc
@@ -170,11 +184,30 @@ def request(url, params, label):
     raise RuntimeError(f"{label}: {last_error}")
 
 
+def is_quota_error_text(message):
+    message = str(message).lower()
+
+    return any(
+        marker in message
+        for marker in (
+            "api_limit_exceeded",
+            "http 429",
+            "returnreasoncode 22",
+            "returnreasoncode=22",
+            "limited_number_of_service_requests",
+            "일일 서비스 요청제한",
+            "서비스 요청제한 횟수 초과",
+            "요청 한도 초과",
+        )
+    )
+
+
 def page(word, topic, page_number):
     root = request(
         LIST,
         {
             "serviceKey": KEY,
+            "callTp": "L",
             "pageNo": page_number,
             "numOfRows": ROWS_PER_PAGE,
             "intrsThemaArray": topic,
@@ -240,6 +273,7 @@ def detail(service_id):
         DETAIL,
         {
             "serviceKey": KEY,
+            "callTp": "D",
             "servId": service_id,
         },
         f"상세/{service_id}",
@@ -284,6 +318,7 @@ def detail(service_id):
         key: txt(root, names)
         for key, names in fields.items()
     }
+
     result = {
         key: value
         for key, value in result.items()
@@ -312,10 +347,23 @@ def detail(service_id):
     return result
 
 
+def get_service_id(program):
+    """Get the API service ID from either supported ID field."""
+    service_id = str(program.get("servId", "")).strip()
+
+    if service_id:
+        return service_id
+
+    program_id = str(program.get("id", "")).strip()
+
+    if program_id.startswith("api-"):
+        return program_id[4:]
+
+    return program_id
+
+
 def load_existing():
-    """Load the previous dataset so failed detail requests do not
-    unnecessarily erase previously collected detail information.
-    """
+    """Load previous data so existing records and details can be reused."""
     if not OUT.exists():
         return {}
 
@@ -325,12 +373,10 @@ def load_existing():
         result = {}
 
         for program in programs:
-            service_id = str(program.get("servId", "")).strip()
+            if not isinstance(program, dict):
+                continue
 
-            if not service_id:
-                program_id = str(program.get("id", ""))
-                if program_id.startswith("api-"):
-                    service_id = program_id[4:]
+            service_id = get_service_id(program)
 
             if service_id:
                 result[service_id] = program
@@ -343,19 +389,9 @@ def load_existing():
         return {}
 
 
-def is_quota_error(exc):
-    message = str(exc).lower()
-
-    return any(
-        marker in message
-        for marker in (
-            "api_limit_exceeded",
-            "http 429",
-            "returnreasoncode 22",
-            "limited_number_of_service_requests",
-            "일일 서비스 요청제한",
-        )
-    )
+def has_detail(program):
+    """Return True if the existing record contains usable detail fields."""
+    return any(program.get(field) for field in DETAIL_FIELDS)
 
 
 def main():
@@ -370,96 +406,141 @@ def main():
 
     all_rows = {}
     errors = []
-    consecutive_list_failures = 0
+    successful_list_requests = 0
 
     log("지자체 복지서비스 목록 수집을 시작합니다.")
     log(
         f"요청 제한: timeout={REQUEST_TIMEOUT}s, "
-        f"retry={MAX_RETRIES}, 상세정보 최대={MAX_DETAIL_RECORDS}개"
+        f"retry={MAX_RETRIES}, "
+        f"상세정보 최대={MAX_DETAIL_RECORDS}개"
     )
 
+    # Collect list results. Individual query failures do not erase old data.
     for word, topic in QUERIES:
         try:
             first_rows, total = page(word, topic, 1)
-            consecutive_list_failures = 0
+            successful_list_requests += 1
 
             for row in first_rows:
                 all_rows[row["id"]] = row
 
             page_count = min(
-                (total + ROWS_PER_PAGE - 1) // ROWS_PER_PAGE,
+                max(
+                    1,
+                    (total + ROWS_PER_PAGE - 1) // ROWS_PER_PAGE,
+                ),
                 MAX_PAGES_PER_QUERY,
             )
 
             for page_number in range(2, page_count + 1):
-                page_rows, _ = page(word, topic, page_number)
+                try:
+                    page_rows, _ = page(word, topic, page_number)
+                    successful_list_requests += 1
 
-                for row in page_rows:
-                    all_rows[row["id"]] = row
+                    for row in page_rows:
+                        all_rows[row["id"]] = row
 
-            log(
-                f"성공 {word}: API 전체 건수={total}, "
-                f"누적 고유 서비스={len(all_rows)}"
-            )
+                except Exception as exc:
+                    message = (
+                        f"{word} 페이지 {page_number}: {exc}"
+                    )
+                    errors.append(message)
+                    log(f"WARN {message}")
+
+                    if is_quota_error_text(str(exc)):
+                        log(
+                            "목록 API 호출 한도 초과가 감지되었습니다. "
+                            "추가 목록 요청을 중단합니다."
+                        )
+                        break
 
         except Exception as exc:
             message = f"{word}: {exc}"
             errors.append(message)
-            consecutive_list_failures += 1
             log(f"WARN {message}")
 
-            if consecutive_list_failures >= 2 and not all_rows:
-                raise SystemExit(
-                    "목록 API 요청이 연속으로 실패했습니다. "
-                    "API 서버 상태, 요청 URL, API 키 및 "
-                    "GitHub Actions 네트워크를 확인하세요. "
-                    "기존 JSON은 변경하지 않았습니다. "
-                    + "; ".join(errors)
+            if is_quota_error_text(str(exc)):
+                log(
+                    "목록 API 호출 한도 초과가 감지되었습니다. "
+                    "추가 목록 요청을 중단합니다."
                 )
+                break
 
-    if not all_rows:
+    # If no list request succeeded, do not rewrite the existing dataset.
+    if successful_list_requests == 0 or not all_rows:
         raise SystemExit(
-            "No records collected; existing JSON preserved. "
+            "목록 수집에 성공하지 못했거나 결과가 없습니다. "
+            "기존 JSON은 변경하지 않았습니다. "
             + "; ".join(errors)
         )
 
+    log(f"이번 목록 수집: {len(all_rows)}개 고유 서비스")
+
+    # Merge newly discovered services with existing records.
+    # New list metadata takes precedence only when it is non-empty.
+    merged = {}
+
+    for service_id, old in existing.items():
+        merged[service_id] = {
+            "id": service_id,
+            "name": old.get("title") or old.get("name") or "",
+            "summary": old.get("summary", ""),
+            "region": old.get("region", ""),
+            "category": old.get("category", "지자체 복지"),
+            "life_stage": old.get("life_stage", ""),
+            "updated": old.get("updated", ""),
+        }
+
+    for service_id, row in all_rows.items():
+        old_row = merged.get(service_id, {})
+
+        merged[service_id] = {
+            "id": service_id,
+            "name": row.get("name") or old_row.get("name", ""),
+            "summary": row.get("summary") or old_row.get("summary", ""),
+            "region": row.get("region") or old_row.get("region", ""),
+            "category": row.get("category") or old_row.get("category", "지자체 복지"),
+            "life_stage": row.get("life_stage") or old_row.get("life_stage", ""),
+            "updated": row.get("updated") or old_row.get("updated", ""),
+        }
+
+    new_count = sum(
+        1 for service_id in all_rows if service_id not in existing
+    )
+    preserved_missing_count = sum(
+        1 for service_id in existing if service_id not in all_rows
+    )
+
     rows = sorted(
-        all_rows.values(),
-        key=lambda item: (item["region"], item["name"]),
-    )[:]
+        merged.values(),
+        key=lambda item: (item.get("region", ""), item.get("name", "")),
+    )
 
-    log(f"목록 수집 완료: {len(all_rows)}개 고유 서비스")
+    log(f"신규 서비스: {new_count}개")
+    log(
+        "이번 목록에서 누락되었지만 기존 데이터에서 보존한 서비스: "
+        f"{preserved_missing_count}개"
+    )
+    log(f"병합 후 전체 서비스: {len(rows)}개")
 
-    # 기존 상세정보가 없는 서비스부터 먼저 갱신하도록 정렬
+    # Try records with no existing details first.
     rows.sort(
         key=lambda item: (
-            bool(existing.get(item["id"])),
-            item["region"],
-            item["name"],
+            has_detail(existing.get(item["id"], {})),
+            item.get("region", ""),
+            item.get("name", ""),
         )
     )
 
     detail_attempts = 0
     quota_exceeded = False
+    detail_results = {}
 
     for item in rows:
-        old = existing.get(item["id"], {})
+        service_id = item["id"]
+        old = existing.get(service_id, {})
 
-        # 기존 상세정보가 있는 서비스는 이번 실행에서 건너뜀
-        old_has_detail = any(
-            old.get(field)
-            for field in (
-                "description",
-                "target",
-                "criteria",
-                "support",
-                "application",
-                "contact",
-                "official_urls",
-            )
-        )
-
-        if old_has_detail:
+        if has_detail(old):
             continue
 
         if detail_attempts >= MAX_DETAIL_RECORDS:
@@ -468,13 +549,14 @@ def main():
         detail_attempts += 1
 
         try:
-            item["detail"] = detail(item["id"])
+            fresh = detail(service_id)
+            detail_results[service_id] = fresh
 
         except Exception as exc:
-            item["detail"] = {}
-            log(f"WARN 상세정보 {item['id']}: {exc}")
+            detail_results[service_id] = {}
+            log(f"WARN 상세정보 {service_id}: {exc}")
 
-            if is_quota_error(exc):
+            if is_quota_error_text(str(exc)):
                 quota_exceeded = True
                 log(
                     "상세정보 API 호출 한도 초과가 감지되어 "
@@ -501,9 +583,8 @@ def main():
     for item in rows:
         service_id = item["id"]
         old = existing.get(service_id, {})
-        fresh = item.get("detail", {})
+        fresh = detail_results.get(service_id, {})
 
-        # 새 상세정보가 비어 있으면 기존 값을 유지
         def choose(field, old_field=None):
             old_key = old_field or field
             return fresh.get(field) or old.get(old_key, "")
@@ -514,50 +595,63 @@ def main():
             or []
         )
 
-        programs.append(
-            {
-                "id": "api-" + service_id,
-                "servId": service_id,
-                "title": item["name"],
-                "category": (
-                    item["category"]
-                    or old.get("category")
-                    or "지자체 복지"
-                ),
-                "region": item["region"] or old.get("region", ""),
-                "life_stage": (
-                    item["life_stage"]
-                    or old.get("life_stage", "")
-                ),
-                "summary": (
-                    item["summary"]
-                    or fresh.get("description")
-                    or old.get("summary", "")
-                ),
-                "description": choose("description"),
-                "target": choose("target"),
-                "criteria": choose("criteria"),
-                "support": choose("support"),
-                "application": choose("application"),
-                "contact": choose("contact"),
-                "official_urls": urls,
-                "url": (
-                    urls[0]
-                    if urls
-                    else old.get("url", "")
-                ),
-                "source": (
-                    "한국사회보장정보원 지자체복지서비스 API"
-                ),
-                "updated": (
-                    fresh.get("last_updated")
-                    or item.get("updated")
-                    or old.get("updated")
-                    or "API 갱신일 미제공"
-                ),
-                "api_record": True,
-            }
-        )
+        if not isinstance(urls, list):
+            urls = [urls] if urls else []
+
+        title = item.get("name") or old.get("title") or old.get("name", "")
+
+        program = {
+            "id": old.get("id") or ("api-" + service_id),
+            "servId": service_id,
+            "title": title,
+            "category": (
+                item.get("category")
+                or old.get("category")
+                or "지자체 복지"
+            ),
+            "region": item.get("region") or old.get("region", ""),
+            "life_stage": (
+                item.get("life_stage")
+                or old.get("life_stage", "")
+            ),
+            "summary": (
+                item.get("summary")
+                or fresh.get("description")
+                or old.get("summary", "")
+            ),
+            "description": choose("description"),
+            "target": choose("target"),
+            "criteria": choose("criteria"),
+            "support": choose("support"),
+            "application": choose("application"),
+            "contact": choose("contact"),
+            "official_urls": urls,
+            "url": (
+                urls[0]
+                if urls
+                else old.get("url", "")
+            ),
+            "source": (
+                old.get("source")
+                or "한국사회보장정보원 지자체복지서비스 API"
+            ),
+            "updated": (
+                fresh.get("last_updated")
+                or item.get("updated")
+                or old.get("updated")
+                or "API 갱신일 미제공"
+            ),
+            "api_record": True,
+        }
+
+        # Retain other pre-existing fields that this script does not manage.
+        managed_fields = set(program.keys())
+
+        for key, value in old.items():
+            if key not in managed_fields:
+                program[key] = value
+
+        programs.append(program)
 
     now = datetime.now(
         timezone(timedelta(hours=9))
@@ -572,6 +666,7 @@ def main():
             "검색어·관심주제별로 수집한 API 결과입니다. "
             "API에 등록된 전국 모든 사업을 보장하지 않으며, "
             "상세정보나 신청 URL이 없는 경우 빈 값으로 표시합니다. "
+            "이번 목록에서 누락된 기존 서비스는 보존하며, "
             "상세 API 호출 제한으로 일부 항목은 기존 상세정보를 "
             "유지할 수 있습니다."
         ),
