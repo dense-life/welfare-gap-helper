@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="ko">
 <head>
@@ -44,6 +43,8 @@ button{border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:80
 .meta{font-size:.8rem;color:var(--muted);margin-top:10px}
 .empty{padding:20px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px}
 .foot{font-size:.84rem;color:var(--muted)}
+.child-fields{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc}
+[hidden]{display:none!important}
 @media(max-width:620px){.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.panel{padding:16px}}
 </style>
 </head>
@@ -115,6 +116,29 @@ button{border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:80
      <option value="3">3명</option>
      <option value="4plus">4명 이상</option>
     </select>
+   </div>
+
+   <div class="field">
+    <label for="minorChildren">함께 사는 미성년 자녀(18세 미만)</label>
+    <select id="minorChildren">
+     <option value="unknown">모름/선택 안 함</option>
+     <option value="yes">있음</option>
+     <option value="no">없음</option>
+    </select>
+    <p class="hint">함께 사는 가구원 수와 별도로 선택해 주세요.</p>
+   </div>
+
+   <div class="field full child-fields" id="childAgeField" hidden>
+    <fieldset>
+     <legend><strong>자녀 연령대(복수 선택 가능)</strong></legend>
+     <div class="checks">
+      <label><input type="checkbox" name="childAges" value="infant"> 영유아(0~5세)</label>
+      <label><input type="checkbox" name="childAges" value="school"> 초등 연령(6~12세)</label>
+      <label><input type="checkbox" name="childAges" value="teen"> 청소년(13~17세)</label>
+      <label><input type="checkbox" name="childAges" value="unknown"> 나이 모름/선택 안 함</label>
+     </div>
+     <p class="hint">자녀가 여러 명이면 해당하는 연령대를 모두 선택하세요. 나이를 선택하지 않아도 검색할 수 있습니다.</p>
+    </fieldset>
    </div>
 
    <div class="field">
@@ -217,13 +241,14 @@ button{border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:80
 </section>
 </main>
 
-
 <script>
 const policies = [];
 let apiLoadState = '공식 복지서비스 데이터 확인 중';
 
 const regionSelect = document.querySelector('#region');
 const districtSelect = document.querySelector('#district');
+const minorChildrenSelect = document.querySelector('#minorChildren');
+const childAgeField = document.querySelector('#childAgeField');
 
 const districtsByRegion = {
  '서울특별시':['종로구','중구','용산구','성동구','광진구','동대문구','중랑구','성북구','강북구','도봉구','노원구','은평구','서대문구','마포구','양천구','강서구','구로구','금천구','영등포구','동작구','관악구','서초구','강남구','송파구','강동구'],
@@ -266,28 +291,35 @@ function updateDistricts() {
 regionSelect.addEventListener('change', updateDistricts);
 updateDistricts();
 
+function updateChildFields() {
+ const hasChildren = minorChildrenSelect.value === 'yes';
+ childAgeField.hidden = !hasChildren;
+ if (!hasChildren) {
+  document.querySelectorAll('input[name="childAges"]').forEach(el => {
+   el.checked = false;
+  });
+ }
+}
+minorChildrenSelect.addEventListener('change', updateChildFields);
+updateChildFields();
+
 function normalizeRegion(value) {
  return String(value || '').replace(/\s+/g, '');
 }
 
 function matchesRegion(rowRegion, selectedRegion, selectedDistrict, level) {
- // 중앙부처 서비스는 전국 단위로 검색합니다.
  if (level === 'central') return true;
 
  const raw = normalizeRegion(rowRegion);
-
  if (!selectedRegion || selectedRegion === 'unknown') return true;
  if (!raw) return false;
 
  const province = normalizeRegion(selectedRegion);
  const district = normalizeRegion(selectedDistrict);
 
- // 데이터에 시·도명이 들어 있는지 확인합니다.
  if (!raw.includes(province)) return false;
-
  if (!district || district === 'unknown') return true;
 
- // 시·도 전체 서비스와 선택한 시·군·구 서비스를 모두 포함합니다.
  return raw === province || raw.includes(district);
 }
 
@@ -302,10 +334,65 @@ function hasRelevantSituation(p) {
  );
 }
 
-function addPrograms(data, level) {
- if (!data || !Array.isArray(data.programs)) {
-  return 0;
+function normalizeText(value) {
+ return String(value ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function serviceText(item) {
+ const d = item.detail || {};
+ return normalizeText([
+  item.title, item.category, item.why, item.life_stage, item.lifeStage,
+  item.target, item.criteria, item.summary, item.description,
+  d.title, d.name, d.life_stage, d.lifeStage, d.target, d.criteria,
+  d.summary, d.description, d.support
+ ].filter(Boolean).join(' '));
+}
+
+// 일반적인 양육·보육·아동 교육 지원에 해당하는 서비스만 분류합니다.
+// 실종아동 보호처럼 목적이 다른 서비스는 키워드만으로 양육 지원에 넣지 않습니다.
+function isChildFamilyService(item) {
+ const title = normalizeText(item.title || '');
+ const text = serviceText(item);
+
+ const explicitFamilyTitle =
+  /(아이돌봄|공동육아|육아종합|보육료|유아학비|부모급여|아동수당|아동급식|결식아동|양육수당|가정양육|어린이집|유치원|초등학생|중학생|고등학생|청소년.*교육비|교육급여|교과서|다자녀|한부모가족|자녀.*양육|양육.*지원|출산.*지원|영유아.*지원|아동.*돌봄)/.test(title);
+
+ const stage = normalizeText(item.life_stage || item.lifeStage || '');
+ const childStage = /(아동|영유아|청소년|임신|출산|양육|보육|자녀)/.test(stage);
+ const descriptiveChildSupport =
+  /(자녀 양육|아동 급식|결식아동|보육료|영유아와 부모|육아 도우미|육아 공간|육아 프로그램|초등학생.*교육비|청소년.*교육비|자녀 돌봄|양육 부담)/.test(text);
+
+ // '실종아동'처럼 단순히 아동이라는 단어가 들어간 별도 목적 서비스는 자동 분류하지 않습니다.
+ const specialPurpose = /(실종아동|아동학대|아동보호전문|아동권리|아동\s*실종)/.test(title);
+ return !specialPurpose && (explicitFamilyTitle || descriptiveChildSupport || childStage && /(양육|보육|교육|돌봄|출산|자녀)/.test(text));
+}
+
+function ageCompatible(item, childAges) {
+ if (!childAges.length || childAges.includes('unknown')) return true;
+ const text = serviceText(item);
+ const selected = new Set(childAges);
+
+ // 서비스 설명에 연령 제한이 명시된 경우에만 보수적으로 비교합니다.
+ if (/(12세 이하|만 12세 이하|12세까지)/.test(text)) {
+  return selected.has('infant') || selected.has('school');
  }
+ if (/(영유아|영아|유아|미취학|어린이집|유치원)/.test(text) &&
+     !/(초등|청소년|중학생|고등학생)/.test(text)) {
+  return selected.has('infant');
+ }
+ if (/(초등학생|초등학교|초등 연령)/.test(text) &&
+     !/(영유아|유치원|중학생|고등학생|청소년)/.test(text)) {
+  return selected.has('school');
+ }
+ if (/(중학생|고등학생|청소년)/.test(text) &&
+     !/(영유아|유치원|초등학생)/.test(text)) {
+  return selected.has('teen');
+ }
+ return true;
+}
+
+function addPrograms(data, level) {
+ if (!data || !Array.isArray(data.programs)) return 0;
 
  const known = new Set(policies.map(item => item.id));
  let added = 0;
@@ -318,45 +405,51 @@ function addPrograms(data, level) {
     ? 'central'
     : 'local';
 
-  const region = programLevel === 'central'
-   ? '전국'
-   : (row.region || '');
-
+  const region = programLevel === 'central' ? '전국' : (row.region || '');
   const detail = row.detail && typeof row.detail === 'object'
    ? {...row.detail, ...row}
    : {...row};
 
-  policies.push({
+  const item = {
    id: row.id,
    title: row.title || row.name || '복지서비스',
-   category: row.category || (
-    programLevel === 'central' ? '중앙부처 복지' : '지역 복지'
-   ),
+   category: row.category || (programLevel === 'central' ? '중앙부처 복지' : '지역 복지'),
    url: row.url || row.official_url || '',
-   source: row.source || (
-    programLevel === 'central'
-     ? '한국사회보장정보원 중앙부처복지서비스 API'
-     : '한국사회보장정보원 지자체복지서비스 API'
-   ),
+   source: row.source || (programLevel === 'central'
+    ? '한국사회보장정보원 중앙부처복지서비스 API'
+    : '한국사회보장정보원 지자체복지서비스 API'),
    updated: row.updated || 'API 갱신일 미제공',
-   why: row.description || row.summary ||
+   why: row.description || row.summary || row.detail?.summary ||
     '공식 API에서 수집한 서비스입니다. 자세한 조건은 담당 기관에 확인해야 합니다.',
    detail,
+   life_stage: row.life_stage || row.lifeStage || row.detail?.life_stage || '',
+   target: row.target || row.detail?.target || '',
+   criteria: row.criteria || row.detail?.criteria || '',
    apiRecord: true,
    programLevel,
    region,
-
-   match: p => {
-    const regionMatch = matchesRegion(
-     region, p.region, p.district, programLevel
-    );
-
-    return regionMatch && hasRelevantSituation(p);
-   },
-
+   childFamilyService: false,
+   match: () => false,
    uncertain: true
-  });
+  };
 
+  item.childFamilyService = isChildFamilyService(item);
+  item.match = p => {
+   const regionMatch = matchesRegion(region, p.region, p.district, programLevel);
+   if (!regionMatch) return false;
+
+   // 자녀 관련 양육·보육·교육 서비스는 자녀 정보에 따라 별도로 검토합니다.
+   if (item.childFamilyService) {
+    if (p.minorChildren === 'no') return false;
+    if (p.minorChildren === 'unknown' && !p.needs.includes('child')) return false;
+    if (!ageCompatible(item, p.childAges)) return false;
+    return true;
+   }
+
+   return hasRelevantSituation(p);
+  };
+
+  policies.push(item);
   known.add(row.id);
   added++;
  }
@@ -366,17 +459,12 @@ function addPrograms(data, level) {
 
 async function loadJson(path) {
  const response = await fetch(path, {cache: 'no-store'});
- if (!response.ok) {
-  throw new Error(`${path} 파일을 불러오지 못했습니다. HTTP ${response.status}`);
- }
+ if (!response.ok) throw new Error(`${path} 파일을 불러오지 못했습니다. HTTP ${response.status}`);
  return await response.json();
 }
 
 async function loadApiPrograms() {
  const status = document.querySelector('#status');
-
- // 두 파일은 독립적으로 읽습니다.
- // 한쪽 API 데이터에 문제가 있어도 다른 쪽 결과는 유지합니다.
  const [localResult, centralResult] = await Promise.allSettled([
   loadJson('./data/policies.json'),
   loadJson('./data/central_policies.json')
@@ -401,21 +489,13 @@ async function loadApiPrograms() {
  }
 
  if (policies.length > 0) {
-  apiLoadState =
-   `지자체 ${localAdded}건, 중앙부처 ${centralAdded}건을 불러왔습니다. ` +
-   '실제 수록 범위와 자격은 별도 확인이 필요합니다.';
+  apiLoadState = `지자체 ${localAdded}건, 중앙부처 ${centralAdded}건을 불러왔습니다. 실제 수록 범위와 자격은 별도 확인이 필요합니다.`;
  } else {
-  apiLoadState =
-   '복지 데이터 파일을 불러오지 못했습니다. GitHub Actions 실행 결과를 확인해 주세요.';
+  apiLoadState = '복지 데이터 파일을 불러오지 못했습니다. GitHub Actions 실행 결과를 확인해 주세요.';
  }
 
- if (errors.length) {
-  apiLoadState += ' 확인 필요: ' + errors.join(', ') + '.';
- }
-
- if (status) {
-  status.textContent = apiLoadState + ' 입력 후 복지 후보 찾기를 눌러 주세요.';
- }
+ if (errors.length) apiLoadState += ' 확인 필요: ' + errors.join(', ') + '.';
+ if (status) status.textContent = apiLoadState + ' 입력 후 복지 후보 찾기를 눌러 주세요.';
 }
 
 function profile() {
@@ -424,6 +504,8 @@ function profile() {
   region: regionSelect.value,
   district: districtSelect.value,
   household: document.querySelector('#household').value,
+  minorChildren: minorChildrenSelect.value,
+  childAges: [...document.querySelectorAll('input[name="childAges"]:checked')].map(x => x.value),
   income: document.querySelector('#income').value,
   assets: document.querySelector('#assets').value,
   housing: document.querySelector('#housing').value,
@@ -437,11 +519,7 @@ function profile() {
 
 function esc(s) {
  return String(s ?? '').replace(/[&<>"']/g, c => ({
-  '&':'&amp;',
-  '<':'&lt;',
-  '>':'&gt;',
-  '"':'&quot;',
-  "'":'&#39;'
+  '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
  }[c]));
 }
 
@@ -451,90 +529,66 @@ function runSearch() {
 
  try {
   status.textContent = '입력한 조건을 분석하고 있습니다… ' + apiLoadState;
-
   const p = profile();
   const found = policies.filter(x => x.match(p));
 
   if (!found.length) {
    document.querySelector('#count').textContent = '조건에 맞는 후보가 없습니다.';
-   cards.innerHTML =
-    '<div class="empty">현재 조건에 맞는 후보가 없습니다. 조건을 바꾸어 다시 검색하거나 주민센터·129에 상담해 보세요. 수집 데이터가 충분하지 않을 가능성도 있습니다.</div>';
+   cards.innerHTML = '<div class="empty">현재 조건에 맞는 후보가 없습니다. 조건을 바꾸어 다시 검색하거나 주민센터·129에 상담해 보세요. 수집 데이터가 충분하지 않을 가능성도 있습니다.</div>';
    status.textContent = apiLoadState;
    return;
   }
 
-  document.querySelector('#count').textContent =
-   `검토 후보 ${found.length}개 · 자격 확정 아님`;
+  document.querySelector('#count').textContent = `검토 후보 ${found.length}개 · 자격 확정 아님`;
 
   cards.innerHTML = found.map(x => {
    const d = x.detail || {};
-
-   const linkUrl = x.url ||
-    (Array.isArray(d.official_urls) ? d.official_urls[0] : '');
-
+   const linkUrl = x.url || (Array.isArray(d.official_urls) ? d.official_urls[0] : '');
    const link = linkUrl
     ? `<a href="${esc(linkUrl)}" target="_blank" rel="noopener">공식 신청·안내 사이트 열기 ↗</a>`
     : '<span class="meta">직접 연결할 공식 URL이 없습니다. 복지로 또는 담당 기관에서 신청 경로를 확인하세요.</span>';
 
    const details = [
     ['지원 내용', d.support],
-    ['지원 대상', d.target],
-    ['선정 기준', d.criteria],
+    ['지원 대상', d.target || x.target],
+    ['선정 기준', d.criteria || x.criteria],
     ['신청 방법', d.application],
     ['문의처', d.contact],
     ['상세 설명', d.description || d.summary]
    ].filter(a => a[1] && String(a[1]).trim());
 
-   const levelLabel = x.programLevel === 'central'
-    ? '중앙부처'
-    : '지자체';
+   const levelLabel = x.programLevel === 'central' ? '중앙부처' : '지자체';
+   const childTag = x.childFamilyService ? '<span class="tag check">자녀 관련 조건 확인</span>' : '';
 
    return `<article class="benefit">
     <span class="tag">${esc(levelLabel)}</span>
     <span class="tag">${esc(x.category)}</span>
     <span class="tag check">신청 자격 확인 필요</span>
+    ${childTag}
     <h3>${esc(x.title)}</h3>
     <p class="meta">대상 지역: ${esc(x.region || '지역 정보 미제공')}</p>
-    ${
-     details.length
-      ? details.map(a =>
-         `<p><strong>${esc(a[0])}</strong><br>${esc(a[1])}</p>`
-        ).join('')
-      : `<p>${esc(x.why || '상세정보가 제공되지 않았습니다.')}</p>`
-    }
+    ${details.length ? details.map(a => `<p><strong>${esc(a[0])}</strong><br>${esc(a[1])}</p>`).join('') : `<p>${esc(x.why || '상세정보가 제공되지 않았습니다.')}</p>`}
     <p>${link}</p>
     <div class="meta">출처: ${esc(x.source)} · 데이터 갱신일: ${esc(x.updated)}</div>
    </article>`;
   }).join('');
 
-  status.textContent =
-   '분석이 끝났습니다. 결과는 자격 확정이 아닌 확인 목록입니다. ' + apiLoadState;
-
-  document.querySelector('#results').scrollIntoView({
-   behavior: 'smooth',
-   block: 'start'
-  });
+  status.textContent = '분석이 끝났습니다. 결과는 자격 확정이 아닌 확인 목록입니다. ' + apiLoadState;
+  document.querySelector('#results').scrollIntoView({behavior:'smooth',block:'start'});
  } catch (err) {
   console.error('복지 후보 표시 오류:', err);
   document.querySelector('#count').textContent = '결과 표시 중 문제가 발생했습니다.';
-  cards.innerHTML =
-   '<div class="empty"><strong>복지 후보를 표시하지 못했습니다.</strong><br>지역 선택과 데이터 파일을 확인해 주세요.</div>';
-  status.textContent =
-   '오류 내용: ' + (err && err.message ? err.message : '알 수 없는 오류');
+  cards.innerHTML = '<div class="empty"><strong>복지 후보를 표시하지 못했습니다.</strong><br>지역 선택과 데이터 파일을 확인해 주세요.</div>';
+  status.textContent = '오류 내용: ' + (err && err.message ? err.message : '알 수 없는 오류');
  }
 }
 
 document.querySelector('#findButton').addEventListener('click', runSearch);
-
 document.querySelectorAll('#profile select').forEach(el => {
  el.addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-   e.preventDefault();
-   runSearch();
-  }
+  if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
  });
 });
-
 loadApiPrograms();
 </script>
 </body>
