@@ -31,14 +31,15 @@ DETAIL = BASE + "/LcgvWelfaredetailed"
 
 KEY = os.environ.get("WELFARE_API_KEY", "").strip()
 
-# 연결 문제를 빠르게 진단할 수 있도록 제한한다.
 REQUEST_TIMEOUT = 20
 MAX_RETRIES = 1
 RETRY_DELAY = 2
 ROWS_PER_PAGE = 100
 MAX_PAGES_PER_QUERY = 5
-MAX_DETAIL_RECORDS = 150
-DETAIL_DELAY = 0.1
+
+# 한 번 실행할 때 상세정보를 새로 조회하는 최대 건수
+MAX_DETAIL_RECORDS = 20
+DETAIL_DELAY = 0.2
 
 QUERIES = [
     ("주거", "040"),
@@ -79,13 +80,17 @@ def txt(node, names):
 
 
 def request(url, params, label):
-    """Request XML with a bounded retry policy."""
+    """Request XML with bounded retries.
+
+    HTTP 429 is not retried because it commonly indicates
+    a request limit. The caller can stop further detail requests.
+    """
     full_url = url + "?" + urllib.parse.urlencode(params)
 
     req = urllib.request.Request(
         full_url,
         headers={
-            "User-Agent": "welfare-gap-helper/2.1",
+            "User-Agent": "welfare-gap-helper/2.2",
             "Accept": "application/xml,text/xml,*/*",
         },
     )
@@ -118,8 +123,7 @@ def request(url, params, label):
             return root
 
         except urllib.error.HTTPError as exc:
-            # 인증 오류나 잘못된 파라미터는 무조건 재시도하지 않는다.
-            body = exc.read(1000).decode(
+            body = exc.read(1500).decode(
                 "utf-8",
                 errors="replace",
             )
@@ -127,7 +131,14 @@ def request(url, params, label):
                 f"HTTP {exc.code}: {body}"
             )
 
-            if exc.code not in (429, 500, 502, 503, 504):
+            # 호출 제한은 짧은 재시도로 해결되지 않으므로 즉시 종료
+            if exc.code == 429:
+                raise RuntimeError(
+                    f"API_LIMIT_EXCEEDED: {last_error}"
+                ) from exc
+
+            # 인증·요청 오류는 재시도하지 않음
+            if exc.code not in (500, 502, 503, 504):
                 break
 
         except (
@@ -138,6 +149,16 @@ def request(url, params, label):
             RuntimeError,
         ) as exc:
             last_error = exc
+
+            error_text = str(exc).lower()
+            if (
+                "returnreasoncode 22" in error_text
+                or "limited_number_of_service_requests" in error_text
+                or "일일 서비스 요청제한" in error_text
+            ):
+                raise RuntimeError(
+                    f"API_LIMIT_EXCEEDED: {exc}"
+                ) from exc
 
         if attempt < MAX_RETRIES:
             log(
@@ -165,10 +186,6 @@ def page(word, topic, page_number):
     )
 
     total_text = txt(root, "totalCount")
-    rows = []
-
-    # 서비스 항목을 찾을 때 중첩 XML에서 같은 서비스가
-    # 중복 수집되지 않도록 servId 기준으로 정리한다.
     page_rows = {}
 
     for node in root.iter():
@@ -178,7 +195,7 @@ def page(word, topic, page_number):
         if not service_id or not name:
             continue
 
-        row = {
+        page_rows[service_id] = {
             "id": service_id,
             "name": name,
             "summary": txt(
@@ -208,9 +225,7 @@ def page(word, topic, page_number):
             "updated": txt(node, "lastModYmd"),
         }
 
-        page_rows[service_id] = row
-
-    rows.extend(page_rows.values())
+    rows = list(page_rows.values())
 
     try:
         total = int(total_text)
@@ -269,7 +284,6 @@ def detail(service_id):
         key: txt(root, names)
         for key, names in fields.items()
     }
-
     result = {
         key: value
         for key, value in result.items()
@@ -295,8 +309,53 @@ def detail(service_id):
             urls.append(value)
 
     result["official_urls"] = list(dict.fromkeys(urls))
-
     return result
+
+
+def load_existing():
+    """Load the previous dataset so failed detail requests do not
+    unnecessarily erase previously collected detail information.
+    """
+    if not OUT.exists():
+        return {}
+
+    try:
+        data = json.loads(OUT.read_text(encoding="utf-8"))
+        programs = data.get("programs", [])
+        result = {}
+
+        for program in programs:
+            service_id = str(program.get("servId", "")).strip()
+
+            if not service_id:
+                program_id = str(program.get("id", ""))
+                if program_id.startswith("api-"):
+                    service_id = program_id[4:]
+
+            if service_id:
+                result[service_id] = program
+
+        log(f"기존 데이터 확인: {len(result)}개 서비스")
+        return result
+
+    except (OSError, json.JSONDecodeError) as exc:
+        log(f"WARN 기존 JSON을 읽지 못했습니다: {exc}")
+        return {}
+
+
+def is_quota_error(exc):
+    message = str(exc).lower()
+
+    return any(
+        marker in message
+        for marker in (
+            "api_limit_exceeded",
+            "http 429",
+            "returnreasoncode 22",
+            "limited_number_of_service_requests",
+            "일일 서비스 요청제한",
+        )
+    )
 
 
 def main():
@@ -307,19 +366,21 @@ def main():
         )
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
+    existing = load_existing()
 
     all_rows = {}
     errors = []
     consecutive_list_failures = 0
 
     log("지자체 복지서비스 목록 수집을 시작합니다.")
-    log(f"요청 제한: timeout={REQUEST_TIMEOUT}s, retry={MAX_RETRIES}")
-    log(f"검색 분야: {len(QUERIES)}개")
+    log(
+        f"요청 제한: timeout={REQUEST_TIMEOUT}s, "
+        f"retry={MAX_RETRIES}, 상세정보 최대={MAX_DETAIL_RECORDS}개"
+    )
 
     for word, topic in QUERIES:
         try:
             first_rows, total = page(word, topic, 1)
-
             consecutive_list_failures = 0
 
             for row in first_rows:
@@ -347,8 +408,6 @@ def main():
             consecutive_list_failures += 1
             log(f"WARN {message}")
 
-            # 첫 분야부터 두 차례 연속으로 실패하면
-            # 모든 검색어를 계속 호출하지 않고 연결 문제를 알린다.
             if consecutive_list_failures >= 2 and not all_rows:
                 raise SystemExit(
                     "목록 API 요청이 연속으로 실패했습니다. "
@@ -367,57 +426,133 @@ def main():
     rows = sorted(
         all_rows.values(),
         key=lambda item: (item["region"], item["name"]),
-    )[:MAX_DETAIL_RECORDS]
+    )[:]
 
     log(f"목록 수집 완료: {len(all_rows)}개 고유 서비스")
-    log(f"상세정보 수집 대상: {len(rows)}개")
 
-    for index, item in enumerate(rows, start=1):
+    # 기존 상세정보가 없는 서비스부터 먼저 갱신하도록 정렬
+    rows.sort(
+        key=lambda item: (
+            bool(existing.get(item["id"])),
+            item["region"],
+            item["name"],
+        )
+    )
+
+    detail_attempts = 0
+    quota_exceeded = False
+
+    for item in rows:
+        old = existing.get(item["id"], {})
+
+        # 기존 상세정보가 있는 서비스는 이번 실행에서 건너뜀
+        old_has_detail = any(
+            old.get(field)
+            for field in (
+                "description",
+                "target",
+                "criteria",
+                "support",
+                "application",
+                "contact",
+                "official_urls",
+            )
+        )
+
+        if old_has_detail:
+            continue
+
+        if detail_attempts >= MAX_DETAIL_RECORDS:
+            break
+
+        detail_attempts += 1
+
         try:
             item["detail"] = detail(item["id"])
 
         except Exception as exc:
             item["detail"] = {}
-            item["detail_error"] = str(exc)
             log(f"WARN 상세정보 {item['id']}: {exc}")
 
-        if index % 25 == 0:
-            log(f"상세정보 진행: {index}/{len(rows)}")
+            if is_quota_error(exc):
+                quota_exceeded = True
+                log(
+                    "상세정보 API 호출 한도 초과가 감지되어 "
+                    "추가 상세정보 요청을 중단합니다."
+                )
+                break
+
+        if detail_attempts % 10 == 0:
+            log(
+                f"상세정보 진행: "
+                f"{detail_attempts}/{MAX_DETAIL_RECORDS}"
+            )
 
         time.sleep(DETAIL_DELAY)
+
+    if quota_exceeded:
+        errors.append(
+            "상세정보 API 호출 한도 초과로 상세정보 갱신을 "
+            "중단했습니다. 기존 상세정보는 재사용합니다."
+        )
 
     programs = []
 
     for item in rows:
-        detail_data = item.get("detail", {})
-        urls = detail_data.get("official_urls", [])
+        service_id = item["id"]
+        old = existing.get(service_id, {})
+        fresh = item.get("detail", {})
+
+        # 새 상세정보가 비어 있으면 기존 값을 유지
+        def choose(field, old_field=None):
+            old_key = old_field or field
+            return fresh.get(field) or old.get(old_key, "")
+
+        urls = (
+            fresh.get("official_urls")
+            or old.get("official_urls")
+            or []
+        )
 
         programs.append(
             {
-                "id": "api-" + item["id"],
-                "servId": item["id"],
+                "id": "api-" + service_id,
+                "servId": service_id,
                 "title": item["name"],
-                "category": item["category"] or "지자체 복지",
-                "region": item["region"],
-                "life_stage": item["life_stage"],
+                "category": (
+                    item["category"]
+                    or old.get("category")
+                    or "지자체 복지"
+                ),
+                "region": item["region"] or old.get("region", ""),
+                "life_stage": (
+                    item["life_stage"]
+                    or old.get("life_stage", "")
+                ),
                 "summary": (
                     item["summary"]
-                    or detail_data.get("description", "")
+                    or fresh.get("description")
+                    or old.get("summary", "")
                 ),
-                "description": detail_data.get("description", ""),
-                "target": detail_data.get("target", ""),
-                "criteria": detail_data.get("criteria", ""),
-                "support": detail_data.get("support", ""),
-                "application": detail_data.get("application", ""),
-                "contact": detail_data.get("contact", ""),
+                "description": choose("description"),
+                "target": choose("target"),
+                "criteria": choose("criteria"),
+                "support": choose("support"),
+                "application": choose("application"),
+                "contact": choose("contact"),
                 "official_urls": urls,
-                "url": urls[0] if urls else "",
+                "url": (
+                    urls[0]
+                    if urls
+                    else old.get("url", "")
+                ),
                 "source": (
                     "한국사회보장정보원 지자체복지서비스 API"
                 ),
                 "updated": (
-                    detail_data.get("last_updated")
+                    fresh.get("last_updated")
                     or item.get("updated")
+                    or old.get("updated")
                     or "API 갱신일 미제공"
                 ),
                 "api_record": True,
@@ -436,7 +571,9 @@ def main():
         "coverage_note": (
             "검색어·관심주제별로 수집한 API 결과입니다. "
             "API에 등록된 전국 모든 사업을 보장하지 않으며, "
-            "상세정보나 신청 URL이 없는 경우 빈 값으로 표시합니다."
+            "상세정보나 신청 URL이 없는 경우 빈 값으로 표시합니다. "
+            "상세 API 호출 제한으로 일부 항목은 기존 상세정보를 "
+            "유지할 수 있습니다."
         ),
         "sync_errors": errors,
         "programs": programs,
@@ -444,12 +581,13 @@ def main():
             "frequency": "weekly via GitHub Actions",
             "provider": "한국사회보장정보원 지자체복지서비스 API",
             "paid_services": False,
-            "status": "scheduled_sync_configured; coverage is bounded "
-            "by query strategy and API limits",
+            "status": (
+                "scheduled_sync_configured; coverage is bounded "
+                "by query strategy and API limits"
+            ),
         },
     }
 
-    # 임시 파일에 먼저 기록한 후 교체해 저장 중 손상을 방지한다.
     temp_file = OUT.with_suffix(".json.tmp")
 
     try:
@@ -467,6 +605,8 @@ def main():
     log(f"저장 완료: {OUT}")
     log(f"저장된 서비스: {len(programs)}개")
     log(f"목록 수집 오류: {len(errors)}개")
+    log(f"상세정보 요청 시도: {detail_attempts}개")
+    log(f"호출 한도 초과 감지: {'예' if quota_exceeded else '아니오'}")
 
 
 if __name__ == "__main__":
