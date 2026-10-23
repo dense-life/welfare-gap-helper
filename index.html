@@ -217,9 +217,10 @@ button{border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:80
 </section>
 </main>
 
+
 <script>
 const policies = [];
-let apiLoadState = '공식 API 데이터 확인 중';
+let apiLoadState = '공식 복지서비스 데이터 확인 중';
 
 const regionSelect = document.querySelector('#region');
 const districtSelect = document.querySelector('#district');
@@ -266,117 +267,181 @@ regionSelect.addEventListener('change', updateDistricts);
 updateDistricts();
 
 function normalizeRegion(value) {
- return String(value || '')
-  .replace(/\s+/g,'')
-  .replace(/특별자치도|특별자치시|특별시|광역시|도/g, match => match);
+ return String(value || '').replace(/\s+/g, '');
 }
 
-function matchesRegion(rowRegion, selectedRegion, selectedDistrict) {
- const raw = String(rowRegion || '').trim();
+function matchesRegion(rowRegion, selectedRegion, selectedDistrict, level) {
+ // 중앙부처 서비스는 전국 단위로 검색합니다.
+ if (level === 'central') return true;
+
+ const raw = normalizeRegion(rowRegion);
+
  if (!selectedRegion || selectedRegion === 'unknown') return true;
  if (!raw) return false;
 
- const serviceRegion = normalizeRegion(raw);
  const province = normalizeRegion(selectedRegion);
- const district = String(selectedDistrict || '').trim();
+ const district = normalizeRegion(selectedDistrict);
 
- // 서비스의 지역 정보에 선택한 시·도가 포함되어야 합니다.
- if (!serviceRegion.includes(province)) return false;
+ // 데이터에 시·도명이 들어 있는지 확인합니다.
+ if (!raw.includes(province)) return false;
 
- // 시·군·구를 선택하지 않았으면 해당 시·도 전체를 검색합니다.
  if (!district || district === 'unknown') return true;
 
- // 해당 시·군·구 서비스와 시·도 전체 서비스를 함께 포함합니다.
- const districtCompact = district.replace(/\s+/g,'');
- const isProvinceWide = serviceRegion === province;
- const isDistrictSpecific = serviceRegion.includes(districtCompact);
+ // 시·도 전체 서비스와 선택한 시·군·구 서비스를 모두 포함합니다.
+ return raw === province || raw.includes(district);
+}
 
- return isProvinceWide || isDistrictSpecific;
+function hasRelevantSituation(p) {
+ return (
+  p.needs.length > 0 ||
+  p.income === 'low' ||
+  p.income === 'unstable' ||
+  p.work === 'unable' ||
+  p.work === 'jobless' ||
+  ['rent','monthly','relative','free','unstable'].includes(p.housing)
+ );
+}
+
+function addPrograms(data, level) {
+ if (!data || !Array.isArray(data.programs)) {
+  return 0;
+ }
+
+ const known = new Set(policies.map(item => item.id));
+ let added = 0;
+
+ for (const row of data.programs) {
+  if (!row || !row.id || known.has(row.id)) continue;
+
+  const programLevel =
+   level === 'central' || row.program_level === 'central'
+    ? 'central'
+    : 'local';
+
+  const region = programLevel === 'central'
+   ? '전국'
+   : (row.region || '');
+
+  const detail = row.detail && typeof row.detail === 'object'
+   ? {...row.detail, ...row}
+   : {...row};
+
+  policies.push({
+   id: row.id,
+   title: row.title || row.name || '복지서비스',
+   category: row.category || (
+    programLevel === 'central' ? '중앙부처 복지' : '지역 복지'
+   ),
+   url: row.url || row.official_url || '',
+   source: row.source || (
+    programLevel === 'central'
+     ? '한국사회보장정보원 중앙부처복지서비스 API'
+     : '한국사회보장정보원 지자체복지서비스 API'
+   ),
+   updated: row.updated || 'API 갱신일 미제공',
+   why: row.description || row.summary ||
+    '공식 API에서 수집한 서비스입니다. 자세한 조건은 담당 기관에 확인해야 합니다.',
+   detail,
+   apiRecord: true,
+   programLevel,
+   region,
+
+   match: p => {
+    const regionMatch = matchesRegion(
+     region, p.region, p.district, programLevel
+    );
+
+    return regionMatch && hasRelevantSituation(p);
+   },
+
+   uncertain: true
+  });
+
+  known.add(row.id);
+  added++;
+ }
+
+ return added;
+}
+
+async function loadJson(path) {
+ const response = await fetch(path, {cache: 'no-store'});
+ if (!response.ok) {
+  throw new Error(`${path} 파일을 불러오지 못했습니다. HTTP ${response.status}`);
+ }
+ return await response.json();
 }
 
 async function loadApiPrograms() {
- try {
-  const response = await fetch('./data/policies.json', {cache:'no-store'});
-  if (!response.ok) throw new Error('정책 데이터 파일을 불러오지 못했습니다.');
+ const status = document.querySelector('#status');
 
-  const data = await response.json();
-  const allRows = Array.isArray(data.programs)
-   ? data.programs
-   : (Array.isArray(data.api_programs) ? data.api_programs : []);
+ // 두 파일은 독립적으로 읽습니다.
+ // 한쪽 API 데이터에 문제가 있어도 다른 쪽 결과는 유지합니다.
+ const [localResult, centralResult] = await Promise.allSettled([
+  loadJson('./data/policies.json'),
+  loadJson('./data/central_policies.json')
+ ]);
 
-  const rows = allRows.filter(row =>
-   row && (row.api_record === true || String(row.id || '').startsWith('api-'))
-  );
+ let localAdded = 0;
+ let centralAdded = 0;
+ const errors = [];
 
-  if (!rows.length) {
-   apiLoadState = '수집된 지자체 API 데이터가 없습니다. GitHub Actions의 수집 작업을 확인해 주세요.';
-   document.querySelector('#status').textContent = apiLoadState;
-   return;
-  }
-
-  const known = new Set(policies.map(x=>x.id));
-
-  for (const row of rows) {
-   if (!row || !row.id || known.has(row.id)) continue;
-
-   const region = row.region || '';
-
-   policies.push({
-    id:row.id,
-    title:row.title || row.name || '지자체 복지서비스',
-    category:row.category || '지역 복지',
-    url:row.url || '',
-    source:row.source || '한국사회보장정보원 지자체복지서비스 API',
-    updated:row.updated || 'API 갱신일 미제공',
-    why:row.description || row.summary || '공식 API 목록에서 확인된 사업입니다. 상세 조건은 담당 기관에 확인해야 합니다.',
-    detail:row,
-    apiRecord:true,
-    region,
-    match:p=>{
-     const regionMatch = matchesRegion(region,p.region,p.district);
-     const needsMatch =
-      p.needs.length > 0 ||
-      p.income === 'low' ||
-      p.income === 'unstable' ||
-      p.work === 'unable' ||
-      p.work === 'jobless' ||
-      ['rent','monthly','relative','free','unstable'].includes(p.housing);
-
-     return regionMatch && needsMatch;
-    },
-    uncertain:true
-   });
-  }
-
-  apiLoadState = `지자체 API 데이터 ${rows.length}건을 읽었습니다. 전국 전체 수록을 보장하지 않습니다.`;
- } catch (err) {
-  apiLoadState = 'API 데이터 파일을 읽지 못했습니다. 자동 수집 상태를 확인하세요.';
-  console.warn('API 후보 불러오기 오류:',err);
+ if (localResult.status === 'fulfilled') {
+  localAdded = addPrograms(localResult.value, 'local');
+ } else {
+  errors.push('지자체 데이터 불러오기 실패');
+  console.warn('지자체 데이터 오류:', localResult.reason);
  }
 
- const status = document.querySelector('#status');
- if (status) status.textContent = apiLoadState + ' 입력 후 복지 후보 찾기를 눌러 주세요.';
+ if (centralResult.status === 'fulfilled') {
+  centralAdded = addPrograms(centralResult.value, 'central');
+ } else {
+  errors.push('중앙부처 데이터 불러오기 실패');
+  console.warn('중앙부처 데이터 오류:', centralResult.reason);
+ }
+
+ if (policies.length > 0) {
+  apiLoadState =
+   `지자체 ${localAdded}건, 중앙부처 ${centralAdded}건을 불러왔습니다. ` +
+   '실제 수록 범위와 자격은 별도 확인이 필요합니다.';
+ } else {
+  apiLoadState =
+   '복지 데이터 파일을 불러오지 못했습니다. GitHub Actions 실행 결과를 확인해 주세요.';
+ }
+
+ if (errors.length) {
+  apiLoadState += ' 확인 필요: ' + errors.join(', ') + '.';
+ }
+
+ if (status) {
+  status.textContent = apiLoadState + ' 입력 후 복지 후보 찾기를 눌러 주세요.';
+ }
 }
 
 function profile() {
  return {
-  age:document.querySelector('#age').value,
-  region:regionSelect.value,
-  district:districtSelect.value,
-  household:document.querySelector('#household').value,
-  income:document.querySelector('#income').value,
-  assets:document.querySelector('#assets').value,
-  housing:document.querySelector('#housing').value,
-  rentpaid:document.querySelector('#rentpaid').value,
-  work:document.querySelector('#work').value,
-  needs:[...document.querySelectorAll('input[name="needs"]:checked')]
-   .map(x=>x.value).filter(x=>x!=='none')
+  age: document.querySelector('#age').value,
+  region: regionSelect.value,
+  district: districtSelect.value,
+  household: document.querySelector('#household').value,
+  income: document.querySelector('#income').value,
+  assets: document.querySelector('#assets').value,
+  housing: document.querySelector('#housing').value,
+  rentpaid: document.querySelector('#rentpaid').value,
+  work: document.querySelector('#work').value,
+  needs: [...document.querySelectorAll('input[name="needs"]:checked')]
+   .map(x => x.value)
+   .filter(x => x !== 'none')
  };
 }
 
 function esc(s) {
- return String(s ?? '').replace(/[&<>"']/g,c=>({
-  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+ return String(s ?? '').replace(/[&<>"']/g, c => ({
+  '&':'&amp;',
+  '<':'&lt;',
+  '>':'&gt;',
+  '"':'&quot;',
+  "'":'&#39;'
  }[c]));
 }
 
@@ -386,55 +451,83 @@ function runSearch() {
 
  try {
   status.textContent = '입력한 조건을 분석하고 있습니다… ' + apiLoadState;
+
   const p = profile();
-  const found = policies.filter(x=>x.match(p));
+  const found = policies.filter(x => x.match(p));
 
   if (!found.length) {
-   throw new Error('현재 조건에 맞는 후보가 없습니다. 시·군·구 또는 시·도 선택을 바꾸어 다시 검색해 보세요. 데이터가 충분히 수집되었는지도 확인해 주세요.');
+   document.querySelector('#count').textContent = '조건에 맞는 후보가 없습니다.';
+   cards.innerHTML =
+    '<div class="empty">현재 조건에 맞는 후보가 없습니다. 조건을 바꾸어 다시 검색하거나 주민센터·129에 상담해 보세요. 수집 데이터가 충분하지 않을 가능성도 있습니다.</div>';
+   status.textContent = apiLoadState;
+   return;
   }
 
   document.querySelector('#count').textContent =
    `검토 후보 ${found.length}개 · 자격 확정 아님`;
 
-  cards.innerHTML = found.map(x=>{
+  cards.innerHTML = found.map(x => {
    const d = x.detail || {};
-   const link = x.url
-    ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">공식 신청·안내 사이트 열기 ↗</a>`
-    : '<span class="meta">API에서 직접 신청 URL을 제공하지 않았습니다. 문의처 또는 지자체 공식 홈페이지에서 신청 경로를 확인하세요.</span>';
+
+   const linkUrl = x.url ||
+    (Array.isArray(d.official_urls) ? d.official_urls[0] : '');
+
+   const link = linkUrl
+    ? `<a href="${esc(linkUrl)}" target="_blank" rel="noopener">공식 신청·안내 사이트 열기 ↗</a>`
+    : '<span class="meta">직접 연결할 공식 URL이 없습니다. 복지로 또는 담당 기관에서 신청 경로를 확인하세요.</span>';
 
    const details = [
-    ['지원 내용',d.support],
-    ['지원 대상',d.target],
-    ['선정 기준',d.criteria],
-    ['신청 방법',d.application],
-    ['문의처',d.contact],
-    ['상세 설명',d.description || d.summary]
-   ].filter(a=>a[1]);
+    ['지원 내용', d.support],
+    ['지원 대상', d.target],
+    ['선정 기준', d.criteria],
+    ['신청 방법', d.application],
+    ['문의처', d.contact],
+    ['상세 설명', d.description || d.summary]
+   ].filter(a => a[1] && String(a[1]).trim());
+
+   const levelLabel = x.programLevel === 'central'
+    ? '중앙부처'
+    : '지자체';
 
    return `<article class="benefit">
+    <span class="tag">${esc(levelLabel)}</span>
     <span class="tag">${esc(x.category)}</span>
     <span class="tag check">신청 자격 확인 필요</span>
     <h3>${esc(x.title)}</h3>
-    <p class="meta">지역: ${esc(x.region || 'API 지역 정보 미제공')}</p>
-    ${details.map(a=>`<p><strong>${esc(a[0])}</strong><br>${esc(a[1])}</p>`).join('') || `<p>${esc(x.why || '상세정보가 API에서 제공되지 않았습니다.')}</p>`}
+    <p class="meta">대상 지역: ${esc(x.region || '지역 정보 미제공')}</p>
+    ${
+     details.length
+      ? details.map(a =>
+         `<p><strong>${esc(a[0])}</strong><br>${esc(a[1])}</p>`
+        ).join('')
+      : `<p>${esc(x.why || '상세정보가 제공되지 않았습니다.')}</p>`
+    }
     <p>${link}</p>
     <div class="meta">출처: ${esc(x.source)} · 데이터 갱신일: ${esc(x.updated)}</div>
    </article>`;
   }).join('');
 
-  status.textContent = '분석이 끝났습니다. 아래 후보는 자격 확정이 아닌 확인 목록입니다.';
-  document.querySelector('#results').scrollIntoView({behavior:'smooth',block:'start'});
- } catch(err) {
-  console.error('복지 후보 표시 오류:',err);
+  status.textContent =
+   '분석이 끝났습니다. 결과는 자격 확정이 아닌 확인 목록입니다. ' + apiLoadState;
+
+  document.querySelector('#results').scrollIntoView({
+   behavior: 'smooth',
+   block: 'start'
+  });
+ } catch (err) {
+  console.error('복지 후보 표시 오류:', err);
   document.querySelector('#count').textContent = '결과 표시 중 문제가 발생했습니다.';
-  cards.innerHTML = '<div class="empty"><strong>복지 후보를 표시하지 못했습니다.</strong><br>지역 선택이나 데이터 수집 상태를 확인해 주세요.</div>';
-  status.textContent = '오류 내용: ' + (err && err.message ? err.message : '알 수 없는 오류');
+  cards.innerHTML =
+   '<div class="empty"><strong>복지 후보를 표시하지 못했습니다.</strong><br>지역 선택과 데이터 파일을 확인해 주세요.</div>';
+  status.textContent =
+   '오류 내용: ' + (err && err.message ? err.message : '알 수 없는 오류');
  }
 }
 
-document.querySelector('#findButton').addEventListener('click',runSearch);
-document.querySelectorAll('#profile select').forEach(el=>{
- el.addEventListener('keydown',e=>{
+document.querySelector('#findButton').addEventListener('click', runSearch);
+
+document.querySelectorAll('#profile select').forEach(el => {
+ el.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
    e.preventDefault();
    runSearch();
