@@ -1,4 +1,4 @@
-```python
+
 import json
 import sys
 from pathlib import Path
@@ -35,14 +35,14 @@ def main():
     if not isinstance(programs, list) or not programs:
         fail("programs가 비어 있거나 배열 형식이 아닙니다.")
 
-    required_fields = [
+    required_fields = (
         "id",
         "servId",
         "title",
         "source",
         "api_record",
         "program_level",
-    ]
+    )
 
     seen_ids = set()
     seen_serv_ids = set()
@@ -56,29 +56,24 @@ def main():
             if value is None or value == "":
                 fail(f"{index}번째 프로그램의 {field} 값이 없습니다.")
 
-        if program.get("api_record") is not True:
+        if program["api_record"] is not True:
             fail(f"{index}번째 프로그램의 api_record가 true가 아닙니다.")
 
-        if program.get("program_level") != "central":
+        if program["program_level"] != "central":
             fail(f"{index}번째 프로그램의 program_level이 central이 아닙니다.")
 
-        program_id = program["id"]
-        serv_id = program["servId"]
+        if program["id"] in seen_ids:
+            fail(f"중복 id가 있습니다: {program['id']}")
 
-        if program_id in seen_ids:
-            fail(f"중복 id가 있습니다: {program_id}")
+        if program["servId"] in seen_serv_ids:
+            fail(f"중복 servId가 있습니다: {program['servId']}")
 
-        if serv_id in seen_serv_ids:
-            fail(f"중복 servId가 있습니다: {serv_id}")
+        seen_ids.add(program["id"])
+        seen_serv_ids.add(program["servId"])
 
-        seen_ids.add(program_id)
-        seen_serv_ids.add(serv_id)
-
-    api_count = data.get("api_count")
-
-    if api_count != len(programs):
+    if data.get("api_count") != len(programs):
         fail(
-            f"api_count({api_count})와 "
+            f"api_count({data.get('api_count')})와 "
             f"programs 개수({len(programs)})가 다릅니다."
         )
 
@@ -91,4 +86,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
