@@ -2,7 +2,7 @@
   "schema_version": 1,
   "dataset_status": "official_central_api_sync_sampled",
   "source": "한국사회보장정보원 중앙부처복지서비스 API",
-  "updated_at": "2026-10-23T06:55:28+0000",
+  "updated_at": "2026-10-23T07:22:43+0000",
   "api_count": 10,
   "detail_sample_count": 0,
   "programs": [
