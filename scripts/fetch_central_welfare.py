@@ -39,7 +39,7 @@ def local_name(tag):
 
 
 def child_text(element, names):
-    """요소의 직계 자식 중 이름이 일치하는 첫 번째 값을 반환한다."""
+    """직계 자식 요소에서 일치하는 이름의 값을 찾는다."""
     if isinstance(names, str):
         names = [names]
 
@@ -53,7 +53,7 @@ def child_text(element, names):
 
 
 def find_text(element, names):
-    """하위 요소까지 검색하되, 이름이 일치하는 첫 번째 값을 반환한다."""
+    """하위 요소 전체에서 일치하는 이름의 값을 찾는다."""
     if isinstance(names, str):
         names = [names]
 
@@ -67,15 +67,18 @@ def find_text(element, names):
 
 
 def request_xml(url, params):
-   request_params = dict(params)
+    """공공데이터 API를 호출하고 XML 응답을 반환한다."""
+    request_params = dict(params)
 
-if "serviceKey" in request_params:
-    request_params["serviceKey"] = urllib.parse.unquote(
-        request_params["serviceKey"]
-    )
+    # 인증키가 이미 URL 인코딩된 형태여도
+    # 중복 인코딩되지 않도록 정규화한다.
+    if "serviceKey" in request_params:
+        request_params["serviceKey"] = urllib.parse.unquote(
+            str(request_params["serviceKey"])
+        )
 
-query = urllib.parse.urlencode(request_params)
-request_url = f"{url}?{query}"
+    query = urllib.parse.urlencode(request_params)
+    request_url = f"{url}?{query}"
 
     request = urllib.request.Request(
         request_url,
@@ -85,19 +88,30 @@ request_url = f"{url}?{query}"
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             raw = response.read()
+
     except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")[:1000]
+        body = exc.read().decode(
+            "utf-8", errors="replace"
+        )[:1000]
         fail(f"API HTTP 오류 {exc.code}: {body}")
+
     except urllib.error.URLError as exc:
         fail(f"API 연결 오류: {exc.reason}")
+
     except TimeoutError:
         fail("API 요청 시간이 초과되었습니다.")
 
     try:
         root = ET.fromstring(raw)
+
     except ET.ParseError as exc:
-        preview = raw[:500].decode("utf-8", errors="replace")
-        fail(f"XML 응답을 해석할 수 없습니다: {exc}; 응답 일부: {preview}")
+        preview = raw[:500].decode(
+            "utf-8", errors="replace"
+        )
+        fail(
+            f"XML 응답을 해석할 수 없습니다: {exc}; "
+            f"응답 일부: {preview}"
+        )
 
     result_code = find_text(root, "resultCode")
     result_message = find_text(root, "resultMessage")
@@ -113,17 +127,20 @@ request_url = f"{url}?{query}"
 
 
 def get_items(root):
-    """응답의 item 요소를 찾는다."""
+    """응답에서 복지서비스 항목을 찾는다."""
     return [
         element
         for element in root.iter()
-        if local_name(element.tag) == "servList"
-        or local_name(element.tag) == "servDtl"
-        or local_name(element.tag) == "item"
+        if local_name(element.tag) in (
+            "servList",
+            "servDtl",
+            "item",
+        )
     ]
 
 
 def normalize_program(item):
+    """API 응답을 프로그램 데이터 구조로 변환한다."""
     service_id = (
         child_text(item, ["servId", "servID", "serviceId"])
         or find_text(item, ["servId", "servID", "serviceId"])
@@ -138,7 +155,10 @@ def normalize_program(item):
         return None
 
     def value(*names):
-        return child_text(item, list(names)) or find_text(item, list(names))
+        return (
+            child_text(item, list(names))
+            or find_text(item, list(names))
+        )
 
     detail = {
         "summary": value("servDgst", "servSummary", "summary"),
@@ -150,7 +170,11 @@ def normalize_program(item):
         "department": value("jurMnofNm", "orgName", "department"),
     }
 
-    detail = {key: val for key, val in detail.items() if val}
+    detail = {
+        key: val
+        for key, val in detail.items()
+        if val
+    }
 
     url = value("servDtlLink", "servUrl", "url")
 
@@ -168,10 +192,15 @@ def normalize_program(item):
 
 
 def main():
-    api_key = os.environ.get("CENTRAL_WELFARE_API_KEY", "").strip()
+    api_key = os.environ.get(
+        "CENTRAL_WELFARE_API_KEY", ""
+    ).strip()
 
     if not api_key:
-        fail("CENTRAL_WELFARE_API_KEY 환경 변수가 설정되지 않았습니다.")
+        fail(
+            "CENTRAL_WELFARE_API_KEY 환경 변수가 "
+            "설정되지 않았습니다."
+        )
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -183,11 +212,11 @@ def main():
         root = request_xml(
             LIST_URL,
             {
-    "serviceKey": api_key,
-    "callTp": "L",
-    "pageNo": page,
-    "numOfRows": ROWS_PER_PAGE,
-},
+                "serviceKey": api_key,
+                "callTp": "L",
+                "pageNo": page,
+                "numOfRows": ROWS_PER_PAGE,
+            },
         )
 
         items = get_items(root)
@@ -196,7 +225,7 @@ def main():
             if page == 1:
                 fail(
                     "목록 응답에서 서비스 항목을 찾지 못했습니다. "
-                    "API 응답 필드와 요청 매개변수를 확인해야 합니다."
+                    "API 응답 구조와 요청 매개변수를 확인해야 합니다."
                 )
             break
 
@@ -204,16 +233,19 @@ def main():
 
         for item in items:
             program = normalize_program(item)
+
             if program:
                 programs_by_id[program["servId"]] = program
                 added += 1
 
         log(
             f"목록 {page}페이지: "
-            f"응답 항목 {len(items)}개, 유효 항목 {added}개"
+            f"응답 항목 {len(items)}개, "
+            f"유효 항목 {added}개"
         )
 
         total_count_text = find_text(root, "totalCount")
+
         try:
             total_count = int(total_count_text)
         except (TypeError, ValueError):
@@ -234,37 +266,39 @@ def main():
 
     log(f"목록 수집 완료: {len(programs)}개 서비스")
 
-    # 상세 API 호출 한도를 고려하여 일부 서비스만 조회한다.
+    # API 호출량을 고려해 최대 40개 서비스의 상세 정보를 조회한다.
     detail_count = min(MAX_DETAILS, len(programs))
 
     for index in range(detail_count):
         program = programs[index]
 
-        try:
-            root = request_xml(
-                DETAIL_URL,
-               {
-    "serviceKey": api_key,
-    "callTp": "D",
-    "servId": program["servId"],
-},
-            )
-        except SystemExit:
-            raise
+        root = request_xml(
+            DETAIL_URL,
+            {
+                "serviceKey": api_key,
+                "callTp": "D",
+                "servId": program["servId"],
+            },
+        )
 
         items = get_items(root)
 
         if items:
             detail_program = normalize_program(items[0])
+
             if detail_program:
                 program["detail"].update(
                     detail_program.get("detail", {})
                 )
+
                 if detail_program.get("url"):
                     program["url"] = detail_program["url"]
 
         if (index + 1) % 10 == 0 or index + 1 == detail_count:
-            log(f"상세 정보 조회: {index + 1}/{detail_count}")
+            log(
+                f"상세 정보 조회: "
+                f"{index + 1}/{detail_count}"
+            )
 
         time.sleep(0.2)
 
@@ -286,6 +320,7 @@ def main():
             encoding="utf-8",
         )
         temp_file.replace(DATA_FILE)
+
     except OSError as exc:
         fail(f"JSON 파일 저장 실패: {exc}")
 
