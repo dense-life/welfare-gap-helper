@@ -19,7 +19,7 @@ BASE_URL = (
 )
 LIST_URL = BASE_URL + "/NationalWelfarelistV001"
 
-# 우선 목록 API만 최소 조건으로 시험한다.
+# 1차 확인은 목록 API 1페이지, 10개 항목만 요청한다.
 MAX_PAGES = 1
 ROWS_PER_PAGE = 10
 MAX_DETAILS = 0
@@ -65,15 +65,12 @@ def child_text(element, names):
 
 
 def request_xml(url, params):
-    """API 요청 후 XML 응답을 반환한다."""
+    """API를 호출하고 XML 응답을 반환한다."""
     request_params = dict(params)
 
-    # 인증키의 URL 인코딩 중복을 방지한다.
-    if "serviceKey" in request_params:
-        request_params["serviceKey"] = urllib.parse.unquote(
-            str(request_params["serviceKey"])
-        )
-
+    # 인증키는 환경 변수에서 가져온 값을 사용한다.
+    # URL 인코딩 키와 디코딩 키의 차이를 확인하기 전까지
+    # 인증키를 임의로 unquote() 하지 않는다.
     query = urllib.parse.urlencode(request_params)
     request_url = f"{url}?{query}"
 
@@ -90,7 +87,7 @@ def request_xml(url, params):
         body = exc.read().decode(
             "utf-8", errors="replace"
         )[:1500]
-        fail(f"HTTP 오류 {exc.code}: {body}")
+        fail(f"API HTTP 오류 {exc.code}: {body}")
 
     except urllib.error.URLError as exc:
         fail(f"API 연결 오류: {exc.reason}")
@@ -105,7 +102,10 @@ def request_xml(url, params):
         preview = raw[:1000].decode(
             "utf-8", errors="replace"
         )
-        fail(f"XML 해석 실패: {exc}; 응답 일부: {preview}")
+        fail(
+            f"XML 응답 해석 실패: {exc}; "
+            f"응답 일부: {preview}"
+        )
 
     result_code = find_text(root, "resultCode")
     result_message = find_text(root, "resultMessage")
@@ -125,6 +125,7 @@ def request_xml(url, params):
 
 
 def get_items(root):
+    """목록 응답에서 복지서비스 항목을 찾는다."""
     return [
         element
         for element in root.iter()
@@ -137,14 +138,21 @@ def get_items(root):
 
 
 def normalize_program(item):
+    """목록 응답을 프로젝트의 공통 데이터 구조로 변환한다."""
     service_id = (
         child_text(item, ["servId", "servID", "serviceId"])
         or find_text(item, ["servId", "servID", "serviceId"])
     )
 
     title = (
-        child_text(item, ["servNm", "servName", "serviceName", "title"])
-        or find_text(item, ["servNm", "servName", "serviceName", "title"])
+        child_text(
+            item,
+            ["servNm", "servName", "serviceName", "title"],
+        )
+        or find_text(
+            item,
+            ["servNm", "servName", "serviceName", "title"],
+        )
     )
 
     if not service_id or not title:
@@ -167,7 +175,9 @@ def normalize_program(item):
     }
 
     detail = {
-        key: val for key, val in detail.items() if val
+        key: val
+        for key, val in detail.items()
+        if val
     }
 
     return {
@@ -189,13 +199,19 @@ def main():
     ).strip()
 
     if not api_key:
-        fail("CENTRAL_WELFARE_API_KEY 환경 변수가 없습니다.")
+        fail(
+            "CENTRAL_WELFARE_API_KEY 환경 변수가 없습니다. "
+            "GitHub Actions Secrets 설정을 확인하세요."
+        )
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     programs_by_id = {}
 
     log("중앙부처 복지서비스 목록 API 시험을 시작합니다.")
-    log("요청 조건: callTp=L, pageNo=1, numOfRows=10")
+    log(
+        "요청 조건: callTp=L, pageNo=1, "
+        "numOfRows=10, srchKeyCode=001"
+    )
 
     root = request_xml(
         LIST_URL,
@@ -204,6 +220,7 @@ def main():
             "callTp": "L",
             "pageNo": 1,
             "numOfRows": ROWS_PER_PAGE,
+            "srchKeyCode": "001",
         },
     )
 
@@ -211,8 +228,8 @@ def main():
 
     if not items:
         fail(
-            "목록 응답에 복지서비스 항목이 없습니다. "
-            "응답 구조와 API 매개변수를 확인해야 합니다."
+            "목록 응답에서 서비스 항목을 찾지 못했습니다. "
+            "API 응답 구조와 요청 매개변수를 확인해야 합니다."
         )
 
     for item in items:
@@ -224,7 +241,10 @@ def main():
     programs = list(programs_by_id.values())
 
     if not programs:
-        fail("목록 응답에서 유효한 서비스 ID와 이름을 찾지 못했습니다.")
+        fail(
+            "목록 응답에서 유효한 서비스 ID와 이름을 "
+            "찾지 못했습니다."
+        )
 
     total_count_text = find_text(root, "totalCount")
 
@@ -253,10 +273,10 @@ def main():
         temp_file.replace(DATA_FILE)
 
     except OSError as exc:
-        fail(f"JSON 저장 실패: {exc}")
+        fail(f"JSON 파일 저장 실패: {exc}")
 
     log(f"목록 시험 성공: 유효 서비스 {len(programs)}개")
-    log(f"API 전체 건수(응답 기준): {total_count}")
+    log(f"API 응답의 전체 서비스 건수: {total_count}")
     log(f"파일 저장 완료: {DATA_FILE}")
     log("상세 API는 이번 시험에서 호출하지 않았습니다.")
 
