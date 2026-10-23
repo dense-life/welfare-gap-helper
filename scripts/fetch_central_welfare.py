@@ -67,8 +67,15 @@ def find_text(element, names):
 
 
 def request_xml(url, params):
-    query = urllib.parse.urlencode(params)
-    request_url = f"{url}?{query}"
+   request_params = dict(params)
+
+if "serviceKey" in request_params:
+    request_params["serviceKey"] = urllib.parse.unquote(
+        request_params["serviceKey"]
+    )
+
+query = urllib.parse.urlencode(request_params)
+request_url = f"{url}?{query}"
 
     request = urllib.request.Request(
         request_url,
