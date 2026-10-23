@@ -176,10 +176,11 @@ def main():
         root = request_xml(
             LIST_URL,
             {
-                "serviceKey": api_key,
-                "pageNo": page,
-                "numOfRows": ROWS_PER_PAGE,
-            },
+    "serviceKey": api_key,
+    "callTp": "L",
+    "pageNo": page,
+    "numOfRows": ROWS_PER_PAGE,
+},
         )
 
         items = get_items(root)
@@ -235,10 +236,11 @@ def main():
         try:
             root = request_xml(
                 DETAIL_URL,
-                {
-                    "serviceKey": api_key,
-                    "servId": program["servId"],
-                },
+               {
+    "serviceKey": api_key,
+    "callTp": "D",
+    "servId": program["servId"],
+},
             )
         except SystemExit:
             raise
