@@ -27,7 +27,10 @@ def main():
     if data.get("schema_version") != 1:
         fail("schema_version 값이 1이 아닙니다.")
 
-    if data.get("dataset_status") != "official_central_api_sync_sampled":
+    if data.get("dataset_status") not in (
+        "official_central_api_sync_sampled",
+        "official_central_api_sync",
+    ):
         fail("dataset_status 값이 예상과 다릅니다.")
 
     programs = data.get("programs")

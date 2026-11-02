@@ -40,7 +40,8 @@ REQUEST_TIMEOUT = 20
 MAX_RETRIES = 1
 RETRY_DELAY = 2
 ROWS_PER_PAGE = 100
-MAX_PAGES_PER_QUERY = 5
+MAX_PAGES_PER_QUERY = 20
+MAX_PAGES_FULL_CATALOG = 100
 
 # Maximum number of new detail requests per run.
 MAX_DETAIL_RECORDS = 20
@@ -203,19 +204,24 @@ def is_quota_error_text(message):
 
 
 def page(word, topic, page_number):
+    params = {
+        "serviceKey": KEY,
+        "callTp": "L",
+        "pageNo": page_number,
+        "numOfRows": ROWS_PER_PAGE,
+        "arrgOrd": "001",
+    }
+    # 검색어와 관심주제는 선택값입니다. 값이 없으면 전체 목록을 먼저 요청합니다.
+    if topic:
+        params["intrsThemaArray"] = topic
+    if word:
+        params["srchKeyCode"] = "003"
+        params["searchWrd"] = word
+
     root = request(
         LIST,
-        {
-            "serviceKey": KEY,
-            "callTp": "L",
-            "pageNo": page_number,
-            "numOfRows": ROWS_PER_PAGE,
-            "intrsThemaArray": topic,
-            "srchKeyCode": "003",
-            "searchWrd": word,
-            "arrgOrd": "001",
-        },
-        f"목록/{word}/페이지 {page_number}",
+        params,
+        f"목록/{word or '전체'}/페이지 {page_number}",
     )
 
     total_text = txt(root, "totalCount")
@@ -415,8 +421,45 @@ def main():
         f"상세정보 최대={MAX_DETAIL_RECORDS}개"
     )
 
-    # Collect list results. Individual query failures do not erase old data.
-    for word, topic in QUERIES:
+    # First request the unfiltered catalog. If this API account does not allow
+    # an unfiltered list, fall back to broader topic searches below.
+    full_catalog_ok = False
+    try:
+        first_rows, total = page("", "", 1)
+        successful_list_requests += 1
+        for row in first_rows:
+            all_rows[row["id"]] = row
+
+        page_count = min(
+            max(1, (total + ROWS_PER_PAGE - 1) // ROWS_PER_PAGE),
+            MAX_PAGES_FULL_CATALOG,
+        )
+        for page_number in range(2, page_count + 1):
+            page_rows, _ = page("", "", page_number)
+            successful_list_requests += 1
+            for row in page_rows:
+                all_rows[row["id"]] = row
+            if not page_rows:
+                break
+
+        full_catalog_ok = bool(all_rows)
+        log(
+            f"전체 목록 조회: API 전체 {total}건 중 "
+            f"{len(all_rows)}개 고유 서비스 수집"
+        )
+    except Exception as exc:
+        message = f"전체 목록 조회 실패: {exc}"
+        errors.append(message)
+        log(f"WARN {message}; 주제별 조회로 전환합니다.")
+        if is_quota_error_text(str(exc)):
+            raise SystemExit(
+                "전체 목록 조회 중 API 호출 한도를 초과했습니다. "
+                "기존 JSON은 변경하지 않았습니다. " + "; ".join(errors)
+            )
+
+    # If the API requires search filters, broaden discovery across topics.
+    # Individual query failures do not erase old data.
+    for word, topic in ([] if full_catalog_ok else QUERIES):
         try:
             first_rows, total = page(word, topic, 1)
             successful_list_requests += 1

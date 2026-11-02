@@ -324,13 +324,10 @@ function matchesRegion(rowRegion, selectedRegion, selectedDistrict, level) {
 }
 
 function hasRelevantSituation(p) {
- return (
-  p.needs.length > 0 ||
-  p.income === 'low' ||
-  p.income === 'unstable' ||
-  p.work === 'unable' ||
-  p.work === 'jobless' ||
-  ['rent','monthly','relative','free','unstable'].includes(p.housing)
+ return Boolean(
+  p.age !== 'unknown' || p.household !== 'unknown' ||
+  p.income !== 'unknown' || p.assets !== 'unknown' ||
+  p.work !== 'unknown' || p.housing !== 'unknown' || p.needs.length
  );
 }
 
@@ -346,6 +343,50 @@ function serviceText(item) {
   d.title, d.name, d.life_stage, d.lifeStage, d.target, d.criteria,
   d.summary, d.description, d.support
  ].filter(Boolean).join(' '));
+}
+
+// 조건이 선택되었다는 이유만으로 해당 지역의 모든 사업을 보여주지 않고,
+// 사업명·지원대상·설명에 같은 주제의 단서가 있을 때만 후보로 둡니다.
+function matchesProfile(item, p) {
+ const text = serviceText(item);
+ const matches = (pattern) => pattern.test(text);
+ const relevant = [];
+
+ if (p.age === '65plus') relevant.push(matches(/노인|어르신|노년|고령|만65세|65세이상|만60세이상/));
+ if (p.age === 'under18') relevant.push(matches(/아동|청소년|영유아|미성년|학생|자녀|어린이/));
+ if (p.age === '18-39') relevant.push(matches(/청년|청년층|만18세|만19세|청년전용/));
+ if (p.age === '40-64') relevant.push(matches(/중장년|중년|만40세|만50세|만60세/));
+ if (p.household === '1') relevant.push(matches(/1인가구|독거|홀몸|단독가구/));
+
+ if (p.income === 'low' || p.income === 'unstable') {
+  relevant.push(matches(/저소득|기초생활|차상위|생계급여|소득인정액|기준중위소득|취약계층|위기가구|긴급복지/));
+ }
+ if (p.assets === 'low') relevant.push(matches(/재산|자산|소득인정액|기초생활|차상위|저소득/));
+ if (['monthly','rent','unstable'].includes(p.housing)) {
+  relevant.push(matches(/주거|임대|월세|임차|전세|보증금|주택|주거급여/));
+ }
+ if (p.rentpaid === 'yes' || p.rentpaid === 'sometimes') {
+  relevant.push(matches(/월세|임차료|임대료|주거급여|주거비/));
+ }
+ if (p.work === 'unable' || p.needs.includes('disability')) {
+  relevant.push(matches(/장애인|장애|중증장애|장애수당|장애인연금|활동지원/));
+ }
+ if (p.needs.includes('chronic')) relevant.push(matches(/질환|질병|의료|건강|병원|진료|의료비|간병/));
+ if (p.needs.includes('care') || p.work === 'care') {
+  relevant.push(matches(/돌봄|요양|활동지원|간병|일상생활|가사|방문서비스/));
+ }
+ if (p.needs.includes('energy')) {
+  relevant.push(matches(/에너지|전기요금|가스요금|난방비|냉방비|연료비|에너지바우처/));
+ }
+ if (p.needs.includes('debt')) {
+  relevant.push(matches(/긴급복지|긴급지원|위기가구|체납|공과금|생계곤란|채무|부채|금융복지/));
+ }
+ if (p.work === 'jobless') relevant.push(matches(/일자리|취업|구직|실업|자활|근로|고용/));
+ if (p.needs.includes('child') || p.minorChildren === 'yes') {
+  relevant.push(matches(/아동|자녀|양육|보육|교육비|아이돌봄|청소년/));
+ }
+
+ return relevant.some(Boolean);
 }
 
 // 일반적인 양육·보육·아동 교육 지원에 해당하는 서비스만 분류합니다.
@@ -446,7 +487,7 @@ function addPrograms(data, level) {
     return true;
    }
 
-   return hasRelevantSituation(p);
+    return hasRelevantSituation(p) && matchesProfile(item, p);
   };
 
   policies.push(item);
@@ -460,7 +501,11 @@ function addPrograms(data, level) {
 async function loadJson(path) {
  const response = await fetch(path, {cache: 'no-store'});
  if (!response.ok) throw new Error(`${path} 파일을 불러오지 못했습니다. HTTP ${response.status}`);
- return await response.json();
+ const data = await response.json();
+ if (!data || !Array.isArray(data.programs)) {
+  throw new Error(`${path} 파일 형식이 올바르지 않습니다. programs 배열이 없습니다.`);
+ }
+ return data;
 }
 
 async function loadApiPrograms() {
@@ -477,21 +522,35 @@ async function loadApiPrograms() {
  if (localResult.status === 'fulfilled') {
   localAdded = addPrograms(localResult.value, 'local');
  } else {
-  errors.push('지자체 데이터 불러오기 실패');
+  const reason = location.protocol === 'file:'
+   ? 'file://로 직접 열면 JSON 읽기가 차단됩니다. GitHub Pages 주소나 로컬 웹서버에서 여세요.'
+   : (localResult.reason?.message || String(localResult.reason));
+  errors.push(`지자체 JSON 실패: ${reason}`);
   console.warn('지자체 데이터 오류:', localResult.reason);
  }
 
  if (centralResult.status === 'fulfilled') {
   centralAdded = addPrograms(centralResult.value, 'central');
  } else {
-  errors.push('중앙부처 데이터 불러오기 실패');
+  const reason = location.protocol === 'file:'
+   ? 'file://로 직접 열면 JSON 읽기가 차단됩니다. GitHub Pages 주소나 로컬 웹서버에서 여세요.'
+   : (centralResult.reason?.message || String(centralResult.reason));
+  errors.push(`중앙부처 JSON 실패: ${reason}`);
   console.warn('중앙부처 데이터 오류:', centralResult.reason);
  }
 
  if (policies.length > 0) {
-  apiLoadState = `지자체 ${localAdded}건, 중앙부처 ${centralAdded}건을 불러왔습니다. 실제 수록 범위와 자격은 별도 확인이 필요합니다.`;
+   const localUpdated = localResult.status === 'fulfilled'
+    ? (localResult.value.generated_at || '갱신 시각 미제공')
+    : '불러오지 못함';
+   const centralUpdated = centralResult.status === 'fulfilled'
+    ? (centralResult.value.updated_at || '갱신 시각 미제공')
+    : '불러오지 못함';
+   apiLoadState = `API 수집 데이터 파일을 불러왔습니다. 지자체 ${localAdded}건(수집 ${localUpdated}), 중앙부처 ${centralAdded}건(수집 ${centralUpdated}). 검색 시각에 API를 직접 호출하는 방식은 아니며, 최신 수집본과 자격 기준은 별도 확인이 필요합니다.`;
  } else {
-  apiLoadState = '복지 데이터 파일을 불러오지 못했습니다. GitHub Actions 실행 결과를 확인해 주세요.';
+  apiLoadState = location.protocol === 'file:'
+   ? 'HTML 파일을 직접 열어 JSON을 읽지 못했습니다. GitHub Pages 사이트 주소로 접속하거나 로컬 웹서버로 실행해 주세요.'
+   : '복지 JSON 파일을 읽지 못했습니다. 아래 오류의 경로와 HTTP 상태를 확인해 주세요.';
  }
 
  if (errors.length) apiLoadState += ' 확인 필요: ' + errors.join(', ') + '.';
