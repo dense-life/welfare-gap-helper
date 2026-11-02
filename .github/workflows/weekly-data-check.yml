@@ -1,4 +1,3 @@
-
 name: Weekly welfare API sync
 
 on:
@@ -32,7 +31,7 @@ jobs:
 
       - name: Collect central government welfare services
         env:
-          CENTRAL_WELFARE_API_KEY: ${{ secrets.CENTRAL_WELFARE_API_KEY }}
+          CENTRAL_WELFARE_API_KEY: ${{ secrets.CENTRAL_WELFARE_API_KEY || secrets.WELFARE_API_KEY }}
         run: python scripts/fetch_central_welfare.py
 
       - name: Validate central government data
