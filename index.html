@@ -27,6 +27,7 @@ input,select{font:inherit;border:1px solid #cbd5e1;border-radius:9px;padding:10p
 select:disabled{background:#f1f5f9;color:#64748b}
 fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin:0}
 .checks{display:flex;flex-wrap:wrap;gap:9px 16px}
+.check-heading{flex-basis:100%;font-weight:800;color:#334155;margin-top:5px}
 .checks label{font-weight:500;display:flex;align-items:center;gap:7px}
 .checks input{width:auto;min-height:auto}
 .hint{font-size:.82rem;color:var(--muted)}
@@ -64,6 +65,14 @@ button{border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:80
  <p class="hint">모르는 항목은 선택하지 않아도 됩니다. 입력 내용은 이 페이지 안에서만 비교하며 서버로 전송하지 않습니다.</p>
  <div id="profile">
   <div class="fields">
+   <div class="field">
+    <label for="gender">성별</label>
+    <select id="gender">
+     <option value="unknown">선택 안 함</option>
+     <option value="female">여성</option>
+     <option value="male">남성</option>
+    </select>
+   </div>
    <div class="field">
     <label for="age">나이</label>
     <select id="age">
@@ -104,61 +113,7 @@ button{border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:80
     <select id="district" disabled>
      <option value="unknown">시·도를 먼저 선택하세요</option>
     </select>
-    <p class="hint">시·군·구를 선택하면 해당 지역과 시·도 전체에 해당하는 서비스를 함께 검색합니다.</p>
-   </div>
-
-   <div class="field">
-    <label for="household">함께 사는 가구원</label>
-    <select id="household">
-     <option value="unknown">선택 안 함</option>
-     <option value="1">1명(혼자 거주)</option>
-     <option value="2">2명</option>
-     <option value="3">3명</option>
-     <option value="4plus">4명 이상</option>
-    </select>
-   </div>
-
-   <div class="field">
-    <label for="minorChildren">함께 사는 미성년 자녀(18세 미만)</label>
-    <select id="minorChildren">
-     <option value="unknown">모름/선택 안 함</option>
-     <option value="yes">있음</option>
-     <option value="no">없음</option>
-    </select>
-    <p class="hint">함께 사는 가구원 수와 별도로 선택해 주세요.</p>
-   </div>
-
-   <div class="field full child-fields" id="childAgeField" hidden>
-    <fieldset>
-     <legend><strong>자녀 연령대(복수 선택 가능)</strong></legend>
-     <div class="checks">
-      <label><input type="checkbox" name="childAges" value="infant"> 영유아(0~5세)</label>
-      <label><input type="checkbox" name="childAges" value="school"> 초등 연령(6~12세)</label>
-      <label><input type="checkbox" name="childAges" value="teen"> 청소년(13~17세)</label>
-      <label><input type="checkbox" name="childAges" value="unknown"> 나이 모름/선택 안 함</label>
-     </div>
-     <p class="hint">자녀가 여러 명이면 해당하는 연령대를 모두 선택하세요. 나이를 선택하지 않아도 검색할 수 있습니다.</p>
-    </fieldset>
-   </div>
-
-   <div class="field">
-    <label for="income">가구 소득 상황</label>
-    <select id="income">
-     <option value="unknown">모름/판단 어려움</option>
-     <option value="low">소득이 거의 없거나 매우 적음</option>
-     <option value="unstable">소득이 불규칙함</option>
-     <option value="middle">일정한 소득이 있음</option>
-    </select>
-   </div>
-
-   <div class="field">
-    <label for="assets">재산 상황</label>
-    <select id="assets">
-     <option value="unknown">모름/선택 안 함</option>
-     <option value="low">재산이 적은 편</option>
-     <option value="some">예금·차량·부동산 등이 있음</option>
-     <option value="home">본인 명의 주택이 있음</option>
-    </select>
+    <p class="hint">지자체 사업 검색을 위해 시·도를 선택해 주세요. 시·군·구를 고르면 해당 지역과 시·도 전체 사업을 함께 검색합니다.</p>
    </div>
 
    <div class="field">
@@ -175,20 +130,11 @@ button{border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:80
    </div>
 
    <div class="field">
-    <label for="rentpaid">실제로 임대료를 내나요?</label>
-    <select id="rentpaid">
-     <option value="unknown">모름/해당 없음</option>
-     <option value="yes">예, 정기적으로 냄</option>
-     <option value="no">아니요</option>
-     <option value="sometimes">일부 부담하거나 불규칙함</option>
-    </select>
-   </div>
-
-   <div class="field">
     <label for="work">일·근로 상황</label>
     <select id="work">
      <option value="unknown">선택 안 함</option>
-     <option value="unable">건강·장애 등으로 일하기 어려움</option>
+     <option value="health_unable">질병·건강 문제로 일하기 어려움</option>
+     <option value="disability_unable">장애 때문에 일하기 어려움</option>
      <option value="jobless">일할 수 있지만 현재 일자리가 없음</option>
      <option value="working">일하고 있음</option>
      <option value="care">가족 돌봄 때문에 일하기 어려움</option>
@@ -205,8 +151,41 @@ button{border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:80
       <label><input type="checkbox" name="needs" value="energy"> 냉난방·전기·가스비 부담</label>
       <label><input type="checkbox" name="needs" value="debt"> 빚·공과금 체납 등 위기 상황</label>
       <label><input type="checkbox" name="needs" value="child"> 자녀 양육·교육 부담</label>
-      <label><input type="checkbox" name="needs" value="none"> 위 항목 해당 없음</label>
      </div>
+    </fieldset>
+   </div>
+
+   <div class="field full">
+    <fieldset>
+     <legend><strong>추가 자격·가구 상황(해당하는 경우만 선택)</strong></legend>
+     <div class="checks">
+      <span class="check-heading">가구·소득·자녀</span>
+      <label><input type="checkbox" name="specialStatuses" value="one_person"> 1인 가구(혼자 거주)</label>
+      <label><input type="checkbox" name="specialStatuses" value="basic_poor"> 기초생활수급·차상위·저소득 기준에 해당</label>
+      <label><input type="checkbox" name="specialStatuses" value="minor_child"> 가구 내 미성년 자녀 있음</label>
+      <label><input type="checkbox" name="specialStatuses" value="student_child"> 가구 내 초·중·고 학생 있음</label>
+      <label><input type="checkbox" name="specialStatuses" value="infant_child"> 가구 내 영유아(0~5세)</label>
+      <label><input type="checkbox" name="specialStatuses" value="disabled_child"> 가구 내 장애아동·장애학생</label>
+      <span class="check-heading">가족·건강 자격</span>
+      <label><input type="checkbox" name="specialStatuses" value="single_parent"> 한부모가족 지원대상</label>
+      <label><input type="checkbox" name="specialStatuses" value="pregnancy"> 현재 임신 중</label>
+      <label><input type="checkbox" name="specialStatuses" value="childbirth"> 출산·입양 자녀 관련 지원 대상</label>
+      <label><input type="checkbox" name="specialStatuses" value="fertility_treatment"> 난임·불임·가임력 회복 치료 대상</label>
+      <label><input type="checkbox" name="specialStatuses" value="marriage_immigrant"> 결혼이민자·다문화가족</label>
+      <label><input type="checkbox" name="specialStatuses" value="developmental_family"> 발달장애인의 부모·가족</label>
+      <span class="check-heading">보훈·거주·직업 등 특수 자격</span>
+      <label><input type="checkbox" name="specialStatuses" value="veteran"> 국가유공자·보훈대상·유족</label>
+      <label><input type="checkbox" name="specialStatuses" value="agent_orange"> 고엽제후유증 환자·유족</label>
+      <label><input type="checkbox" name="specialStatuses" value="atomic_bomb"> 원폭 피해자·유족</label>
+      <label><input type="checkbox" name="specialStatuses" value="nk_defector"> 북한이탈주민</label>
+      <label><input type="checkbox" name="specialStatuses" value="overseas_korean"> 재외국민·해외체류 국민</label>
+      <label><input type="checkbox" name="specialStatuses" value="greenbelt"> 개발제한구역 거주</label>
+      <label><input type="checkbox" name="specialStatuses" value="farmer"> 농업·임업·어업 종사</label>
+      <label><input type="checkbox" name="specialStatuses" value="leprosy_victim"> 한센인 피해자·가족</label>
+      <label><input type="checkbox" name="specialStatuses" value="abductee_family"> 납북 피해자·가족</label>
+      <label><input type="checkbox" name="specialStatuses" value="migrant_worker"> 외국인 근로자</label>
+     </div>
+     <p class="hint">해당하는 경우만 선택하세요. 선택하지 않은 자격 전용 사업은 제외됩니다. 소득·재산 금액은 입력하지 않고 수급·차상위 여부만 선택합니다.</p>
     </fieldset>
    </div>
   </div>
@@ -247,8 +226,6 @@ let apiLoadState = '공식 복지서비스 데이터 확인 중';
 
 const regionSelect = document.querySelector('#region');
 const districtSelect = document.querySelector('#district');
-const minorChildrenSelect = document.querySelector('#minorChildren');
-const childAgeField = document.querySelector('#childAgeField');
 
 const districtsByRegion = {
  '서울특별시':['종로구','중구','용산구','성동구','광진구','동대문구','중랑구','성북구','강북구','도봉구','노원구','은평구','서대문구','마포구','양천구','강서구','구로구','금천구','영등포구','동작구','관악구','서초구','강남구','송파구','강동구'],
@@ -283,25 +260,13 @@ function updateDistricts() {
  districtSelect.disabled = false;
  districtSelect.add(new Option('시·군·구 전체', 'unknown'));
 
- (districtsByRegion[region] || []).forEach(name => {
+ [...(districtsByRegion[region] || [])].sort((a, b) => a.localeCompare(b, 'ko-KR')).forEach(name => {
   districtSelect.add(new Option(name, name));
  });
 }
 
 regionSelect.addEventListener('change', updateDistricts);
 updateDistricts();
-
-function updateChildFields() {
- const hasChildren = minorChildrenSelect.value === 'yes';
- childAgeField.hidden = !hasChildren;
- if (!hasChildren) {
-  document.querySelectorAll('input[name="childAges"]').forEach(el => {
-   el.checked = false;
-  });
- }
-}
-minorChildrenSelect.addEventListener('change', updateChildFields);
-updateChildFields();
 
 function normalizeRegion(value) {
  return String(value || '').replace(/\s+/g, '');
@@ -311,7 +276,7 @@ function matchesRegion(rowRegion, selectedRegion, selectedDistrict, level) {
  if (level === 'central') return true;
 
  const raw = normalizeRegion(rowRegion);
- if (!selectedRegion || selectedRegion === 'unknown') return true;
+ if (!selectedRegion || selectedRegion === 'unknown') return false;
  if (!raw) return false;
 
  const province = normalizeRegion(selectedRegion);
@@ -325,9 +290,9 @@ function matchesRegion(rowRegion, selectedRegion, selectedDistrict, level) {
 
 function hasRelevantSituation(p) {
  return Boolean(
-  p.age !== 'unknown' || p.household !== 'unknown' ||
-  p.income !== 'unknown' || p.assets !== 'unknown' ||
-  p.work !== 'unknown' || p.housing !== 'unknown' || p.needs.length
+  p.age !== 'unknown' || p.gender !== 'unknown' ||
+  p.work !== 'unknown' || p.housing !== 'unknown' ||
+  p.specialStatuses.length || p.needs.length
  );
 }
 
@@ -356,21 +321,16 @@ function matchesProfile(item, p) {
  if (p.age === 'under18') relevant.push(matches(/아동|청소년|영유아|미성년|학생|자녀|어린이/));
  if (p.age === '18-39') relevant.push(matches(/청년|청년층|만18세|만19세|청년전용/));
  if (p.age === '40-64') relevant.push(matches(/중장년|중년|만40세|만50세|만60세/));
- if (p.household === '1') relevant.push(matches(/1인가구|독거|홀몸|단독가구/));
-
- if (p.income === 'low' || p.income === 'unstable') {
-  relevant.push(matches(/저소득|기초생활|차상위|생계급여|소득인정액|기준중위소득|취약계층|위기가구|긴급복지/));
- }
- if (p.assets === 'low') relevant.push(matches(/재산|자산|소득인정액|기초생활|차상위|저소득/));
- if (['monthly','rent','unstable'].includes(p.housing)) {
+ if (p.gender === 'female') relevant.push(matches(/여성|여자|임신|출산|산모|유방암|자궁경부/));
+ if (p.specialStatuses.includes('one_person')) relevant.push(matches(/1인가구|독거|홀몸|단독가구/));
+ if (p.specialStatuses.includes('basic_poor')) relevant.push(matches(/기초생활|차상위|저소득|소득인정액|기준중위소득|생계급여|의료급여/));
+ if (p.housing !== 'unknown') {
   relevant.push(matches(/주거|임대|월세|임차|전세|보증금|주택|주거급여/));
  }
- if (p.rentpaid === 'yes' || p.rentpaid === 'sometimes') {
-  relevant.push(matches(/월세|임차료|임대료|주거급여|주거비/));
- }
- if (p.work === 'unable' || p.needs.includes('disability')) {
+ if (p.needs.includes('disability')) {
   relevant.push(matches(/장애인|장애|중증장애|장애수당|장애인연금|활동지원/));
  }
+ if (['health_unable','disability_unable','unable'].includes(p.work)) relevant.push(matches(/질환|질병|건강|의료|재활|요양|간병|근로능력|질병휴직|상병/));
  if (p.needs.includes('chronic')) relevant.push(matches(/질환|질병|의료|건강|병원|진료|의료비|간병/));
  if (p.needs.includes('care') || p.work === 'care') {
   relevant.push(matches(/돌봄|요양|활동지원|간병|일상생활|가사|방문서비스/));
@@ -386,7 +346,96 @@ function matchesProfile(item, p) {
   relevant.push(matches(/아동|자녀|양육|보육|교육비|아이돌봄|청소년/));
  }
 
+ const statusSignals = {
+  single_parent: /한부모|모자가정|부자가정|조손가정/,
+  pregnancy: /임신|임산부|임신부|산모/,
+  childbirth: /출산|출생|입양|해산|모성보호|육아/,
+  fertility_treatment: /난임|불임|정관|난관|가임력|복원시술/,
+  marriage_immigrant: /결혼이민|다문화가족|이민여성/,
+  student_child: /학생|초등|중학생|고등학생|교육비|스포츠강좌/,
+  minor_child: /아동|자녀|청소년|영유아|보육|양육/,
+  infant_child: /영유아|신생아|미숙아|선천성|난청검사|보청기|환아/,
+  disabled_child: /장애아동|장애학생|발달재활|언어발달|장애아.*의료비/,
+  developmental_family: /발달장애|부모상담|가족상담/,
+  veteran: /국가유공|보훈|참전유공|독립유공|민주유공/,
+  agent_orange: /고엽제/,
+  atomic_bomb: /원폭|원자폭탄|피폭/,
+  nk_defector: /북한이탈|새터민/,
+  overseas_korean: /재외국민|재외동포|해외체류|영사/,
+  greenbelt: /개발제한구역|그린벨트/,
+  farmer: /농업|농어업|농어가|영농|농업인|어업|농촌|농가/,
+  leprosy_victim: /한센|나병/,
+  abductee_family: /납북|전후납북/,
+  migrant_worker: /외국인근로자|이주노동자|외국인 노동자/,
+  basic_poor: /기초생활|차상위|저소득|소득인정액|기준중위소득|생계급여|의료급여/,
+  one_person: /1인가구|독거|홀몸|단독가구/
+ };
+ for (const status of p.specialStatuses) {
+  if (statusSignals[status]) relevant.push(matches(statusSignals[status]));
+ }
+
  return relevant.some(Boolean);
+}
+
+function hasAgeMismatch(item, p) {
+ const title = normalizeText(item.title || '').replace(/\s/g, '');
+ const audience = normalizeText([
+  item.life_stage, item.lifeStage, item.target, item.criteria,
+  item.detail?.life_stage, item.detail?.lifeStage, item.detail?.target, item.detail?.criteria
+ ].filter(Boolean).join(' ')).replace(/\s/g, '');
+ const senior = /(노인|어르신|고령|경로|기초연금|노인일자리)/.test(title);
+ const adultYouth = /(청년|대학생)/.test(title);
+ const childTitle = /(청소년|여성청소년|유청소년|미성년|영유아|영아|유아|초등학생|중학생|고등학생|아동급식|아동수당|스포츠강좌이용권|선천성대사이상|신생아)/.test(title) ||
+  /(저소득유청소년|청소년만|아동만|영유아만|신생아|만\d{1,2}세이하|만\d{1,2}세미만)/.test(audience);
+ const hasChild = p.specialStatuses.some(x => ['minor_child','student_child','infant_child','disabled_child'].includes(x));
+ if (p.age === '65plus' && (adultYouth || childTitle && !hasChild) && !senior) return true;
+ if (p.age === '40-64' && (adultYouth || senior || childTitle && !hasChild)) return true;
+ if ((p.age === '18-39' || p.age === 'under18') && senior) return true;
+ return false;
+}
+
+function hasSpecialEligibilityMismatch(item, p) {
+ const title = normalizeText(item.title || '').replace(/\s/g, '');
+ const eligibility = normalizeText([
+  item.target, item.criteria, item.detail?.target, item.detail?.criteria
+ ].filter(Boolean).join(' ')).replace(/\s/g, '');
+ const text = title + eligibility;
+ const selected = new Set(p.specialStatuses || []);
+ const hasChild = ['minor_child','student_child','infant_child','disabled_child'].some(x => selected.has(x));
+
+ if (/(결혼이민|다문화가족|이민여성)/.test(text) && !selected.has('marriage_immigrant')) return true;
+ const hasPregnancyOrChildbirth = ['pregnancy','childbirth','infant_child','minor_child'].some(x => selected.has(x));
+ if (/(임산부|임신부|고위험임산부|태아|임신출산|임신·출산)/.test(text) && !hasPregnancyOrChildbirth) return true;
+ if (/(산모|엄마와아기|아가와엄마|아기.*보험|무료공익보험|해산급여|출산크레딧|출산육아|모성보호|출산지원|출생|입양.*지원)/.test(text) &&
+     !['childbirth','infant_child','minor_child'].some(x => selected.has(x)) && !selected.has('pregnancy')) return true;
+ if (/(난임|불임|정관|난관|가임력|복원시술)/.test(text) && !selected.has('fertility_treatment')) return true;
+ // 사업주·학교·교육기관 지원은 일반 개인 검색에서 제외합니다.
+ if (/(출산육아기고용안정장려금|고용안정장려금|사업주.*지원|고용주.*지원)/.test(title) || /(사업주|고용주|사업장에 지원|사업체 지원)/.test(eligibility)) return true;
+ if (/(국립특수학교|국립부설학교|특수학급지원|학교운영|교육기관에 지원)/.test(text)) return true;
+ if (/(초중고|초등학교|초등학생|중학교|중학생|고등학교|고등학생|학생교육비|교육비지원.*학생|학교우유급식|우유급식|우유바우처)/.test(text) && !selected.has('student_child')) return true;
+ if (/(스포츠강좌이용권|지역아동센터|아동통합서비스|아동발달지원계좌|아동발달지원|아이돌봄)/.test(text) && !hasChild) return true;
+ if (/(표준모자보건수첩|모자보건수첩|선천성대사이상|신생아|미숙아|선천성이상아|난청검사|보청기지원|환아관리)/.test(text) && !selected.has('infant_child')) return true;
+ if (/(장애아동|장애학생|발달재활|언어발달지원|장애아.*의료비)/.test(text) && !selected.has('disabled_child')) return true;
+ if (/(아동|청소년|영유아|학생|자녀|미성년)/.test(title) && !hasChild && !selected.has('single_parent')) return true;
+ if (/(한부모가족|한부모가정|모자가정|부자가정|조손가정)/.test(text) && !selected.has('single_parent')) return true;
+ if (/(발달장애.*부모상담|발달장애.*가족|부모상담.*발달장애)/.test(text) && !selected.has('developmental_family')) return true;
+ if (/(북한이탈주민|새터민)/.test(text) && !selected.has('nk_defector')) return true;
+ if (/(보훈|국가유공자|참전유공|독립유공|특수임무유공|민주유공)/.test(text) && !selected.has('veteran')) return true;
+ if (/고엽제/.test(text) && !selected.has('agent_orange')) return true;
+ if (/(원폭|원자폭탄|피폭)/.test(text) && !selected.has('atomic_bomb')) return true;
+ if (/(재외국민|재외동포|해외체류국민|재외공관)/.test(text) && !selected.has('overseas_korean')) return true;
+ if (/(개발제한구역|그린벨트)/.test(text) && !selected.has('greenbelt')) return true;
+ if (/(농업|농어업|농어가|영농|농업인|어업|농촌|농가)/.test(text) && !selected.has('farmer')) return true;
+ if (/(한센|나병)/.test(text) && !selected.has('leprosy_victim')) return true;
+ if (/(납북|전후납북)/.test(text) && !selected.has('abductee_family')) return true;
+ if (/(외국인근로자|이주노동자|외국인 노동자)/.test(text) && !selected.has('migrant_worker')) return true;
+ if (/(장애인|발달장애|지적장애|중증장애|장애인연금|장애수당)/.test(title) &&
+     !p.needs.includes('disability') && !selected.has('disabled_child')) return true;
+ if (/(기초생활|차상위|저소득|소득인정액|기준중위소득|수급자|생계급여|의료급여)/.test(text) && !selected.has('basic_poor')) return true;
+ if (/(1인가구|독거|홀몸)/.test(text) && !selected.has('one_person')) return true;
+ if (/(여성청소년|여성만|여성 대상)/.test(text) && p.gender === 'male') return true;
+ if (/(남성만|남성 대상)/.test(text) && p.gender === 'female') return true;
+ return false;
 }
 
 // 일반적인 양육·보육·아동 교육 지원에 해당하는 서비스만 분류합니다.
@@ -396,7 +445,7 @@ function isChildFamilyService(item) {
  const text = serviceText(item);
 
  const explicitFamilyTitle =
-  /(아이돌봄|공동육아|육아종합|보육료|유아학비|부모급여|아동수당|아동급식|결식아동|양육수당|가정양육|어린이집|유치원|초등학생|중학생|고등학생|청소년.*교육비|교육급여|교과서|다자녀|한부모가족|자녀.*양육|양육.*지원|출산.*지원|영유아.*지원|아동.*돌봄)/.test(title);
+  /(아이돌봄|공동육아|육아종합|보육료|유아학비|부모급여|아동수당|아동급식|결식아동|양육수당|가정양육|어린이집|유치원|초등학생|중학생|고등학생|청소년.*교육비|여성청소년|생리용품|교육급여|교과서|다자녀|한부모가족|자녀.*양육|양육.*지원|출산.*지원|영유아.*지원|아동.*돌봄|스포츠강좌이용권|선천성대사이상|신생아.*검사|환아관리|지역아동센터|아동발달지원)/.test(title);
 
  const stage = normalizeText(item.life_stage || item.lifeStage || '');
  const childStage = /(아동|영유아|청소년|임신|출산|양육|보육|자녀)/.test(stage);
@@ -478,11 +527,13 @@ function addPrograms(data, level) {
   item.match = p => {
    const regionMatch = matchesRegion(region, p.region, p.district, programLevel);
    if (!regionMatch) return false;
+   if (hasSpecialEligibilityMismatch(item, p)) return false;
+   if (hasAgeMismatch(item, p)) return false;
 
    // 자녀 관련 양육·보육·교육 서비스는 자녀 정보에 따라 별도로 검토합니다.
    if (item.childFamilyService) {
-    if (p.minorChildren === 'no') return false;
-    if (p.minorChildren === 'unknown' && !p.needs.includes('child')) return false;
+    const hasChild = p.specialStatuses.some(x => ['minor_child','student_child','infant_child','disabled_child'].includes(x));
+    if (!hasChild && !p.needs.includes('child')) return false;
     if (!ageCompatible(item, p.childAges)) return false;
     return true;
    }
@@ -558,22 +609,36 @@ async function loadApiPrograms() {
 }
 
 function profile() {
+ const specialStatuses = [...document.querySelectorAll('input[name="specialStatuses"]:checked')].map(x => x.value);
+ const childAges = [];
+ if (specialStatuses.includes('infant_child')) childAges.push('infant');
+ if (specialStatuses.includes('student_child')) childAges.push('school', 'teen');
+ if (specialStatuses.includes('disabled_child') && !childAges.length) childAges.push('unknown');
+ const hasChild = specialStatuses.some(x => ['minor_child','student_child','infant_child','disabled_child'].includes(x));
  return {
+  gender: document.querySelector('#gender').value,
   age: document.querySelector('#age').value,
   region: regionSelect.value,
   district: districtSelect.value,
-  household: document.querySelector('#household').value,
-  minorChildren: minorChildrenSelect.value,
-  childAges: [...document.querySelectorAll('input[name="childAges"]:checked')].map(x => x.value),
-  income: document.querySelector('#income').value,
-  assets: document.querySelector('#assets').value,
+  household: specialStatuses.includes('one_person') ? '1' : 'unknown',
+  minorChildren: hasChild ? 'yes' : 'no',
+  childAges,
+  income: specialStatuses.includes('basic_poor') ? 'low' : 'unknown',
+  assets: 'unknown',
   housing: document.querySelector('#housing').value,
-  rentpaid: document.querySelector('#rentpaid').value,
   work: document.querySelector('#work').value,
   needs: [...document.querySelectorAll('input[name="needs"]:checked')]
    .map(x => x.value)
-   .filter(x => x !== 'none')
+   .filter(x => x !== 'none'),
+  specialStatuses
  };
+}
+
+function fallbackContact(p) {
+ if (normalizeRegion(p.region).includes('경상북도') && normalizeRegion(p.district).includes('경산시')) {
+  return { text: '경산시청 대표전화 053-811-2231 (복지 담당부서 연결 요청)', phone: '0538112231', url: 'https://www.gbgs.go.kr/' };
+ }
+ return { text: '보건복지상담센터 129 (복지제도·담당기관 문의)', phone: '129', url: 'https://www.mohw.go.kr/menu.es?mid=a10201020000' };
 }
 
 function esc(s) {
@@ -603,16 +668,18 @@ function runSearch() {
   cards.innerHTML = found.map(x => {
    const d = x.detail || {};
    const linkUrl = x.url || (Array.isArray(d.official_urls) ? d.official_urls[0] : '');
+   const savedContact = d.contact || x.contact || '';
+   const contactFallback = savedContact ? null : fallbackContact(p);
    const link = linkUrl
     ? `<a href="${esc(linkUrl)}" target="_blank" rel="noopener">공식 신청·안내 사이트 열기 ↗</a>`
-    : '<span class="meta">직접 연결할 공식 URL이 없습니다. 복지로 또는 담당 기관에서 신청 경로를 확인하세요.</span>';
+    : `<span class="meta">이 사업의 공식 신청 URL은 데이터에 없습니다. 아래 문의처에 신청 경로를 확인하세요.${contactFallback ? ` <a href="${esc(contactFallback.url)}" target="_blank" rel="noopener">공식 문의 안내 ↗</a>` : ''}</span>`;
 
    const details = [
     ['지원 내용', d.support],
     ['지원 대상', d.target || x.target],
     ['선정 기준', d.criteria || x.criteria],
     ['신청 방법', d.application],
-    ['문의처', d.contact],
+    ['문의처', savedContact || contactFallback?.text],
     ['상세 설명', d.description || d.summary]
    ].filter(a => a[1] && String(a[1]).trim());
 
@@ -627,6 +694,7 @@ function runSearch() {
     <h3>${esc(x.title)}</h3>
     <p class="meta">대상 지역: ${esc(x.region || '지역 정보 미제공')}</p>
     ${details.length ? details.map(a => `<p><strong>${esc(a[0])}</strong><br>${esc(a[1])}</p>`).join('') : `<p>${esc(x.why || '상세정보가 제공되지 않았습니다.')}</p>`}
+    ${contactFallback ? `<p><a href="tel:${esc(contactFallback.phone)}">전화 걸기: ${esc(contactFallback.phone)}</a></p>` : ''}
     <p>${link}</p>
     <div class="meta">출처: ${esc(x.source)} · 데이터 갱신일: ${esc(x.updated)}</div>
    </article>`;
