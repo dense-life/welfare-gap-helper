@@ -2,7 +2,7 @@
   "schema_version": 1,
   "dataset_status": "official_central_api_sync",
   "source": "한국사회보장정보원 중앙부처복지서비스 API",
-  "updated_at": "2026-11-08T18:32:15+0000",
+  "updated_at": "2026-11-16T01:39:42+0000",
   "api_count": 461,
   "detail_sample_count": 0,
   "programs": [
@@ -3017,7 +3017,7 @@
       "url": "https://www.bokjiro.go.kr/ssis-tbu/twataa/wlfareInfo/moveTWAT52011M.do?wlfareInfoId=WLF00003254&wlfareInfoReldBztpCd=01",
       "detail": {
         "summary": "방과후 돌봄이 필요한 취약계층 청소년에게 체험활동, 학습지원, 급식, 상담 등 종합서비스 제공을 통한 건강한 성장과 자립을 지원합니다.",
-        "contact": "02-330-2831~4",
+        "contact": "02-330-2892~2895",
         "department": "성평등가족부"
       }
     },
