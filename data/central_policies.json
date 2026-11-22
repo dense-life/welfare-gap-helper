@@ -2,7 +2,7 @@
   "schema_version": 1,
   "dataset_status": "official_central_api_sync",
   "source": "한국사회보장정보원 중앙부처복지서비스 API",
-  "updated_at": "2026-11-16T01:39:42+0000",
+  "updated_at": "2026-11-22T18:39:03+0000",
   "api_count": 461,
   "detail_sample_count": 0,
   "programs": [
@@ -1507,6 +1507,21 @@
       }
     },
     {
+      "id": "central-WLF00003192",
+      "servId": "WLF00003192",
+      "title": "다문화가족 방문교육 서비스",
+      "source": "한국사회보장정보원 중앙부처복지서비스 API",
+      "program_level": "central",
+      "api_record": true,
+      "region": "전국",
+      "url": "https://www.bokjiro.go.kr/ssis-tbu/twataa/wlfareInfo/moveTWAT52011M.do?wlfareInfoId=WLF00003192&wlfareInfoReldBztpCd=01",
+      "detail": {
+        "summary": "집합교육 참여가 어려운 다문화 가정에 방문하여 한국어 교육, 부모 교육, 자녀생활 교육을 제공하고 다문화 가족의 정착과 자녀양육을 돕습니다.",
+        "contact": "1577-1366",
+        "department": "성평등가족부"
+      }
+    },
+    {
       "id": "central-WLF00001161",
       "servId": "WLF00001161",
       "title": "표준모자보건수첩 제공",
@@ -1744,21 +1759,6 @@
         "summary": "성장기 정신적, 감각적 장애아동의 인지, 의사소통, 적응행동, 감각, 운동 등의 기능향상과 행동발달을 위한 재활서비스를 지원하고, 관련 정보를 제공합니다.",
         "contact": "1566-3232",
         "department": "보건복지부"
-      }
-    },
-    {
-      "id": "central-WLF00003192",
-      "servId": "WLF00003192",
-      "title": "다문화가족 방문교육 서비스",
-      "source": "한국사회보장정보원 중앙부처복지서비스 API",
-      "program_level": "central",
-      "api_record": true,
-      "region": "전국",
-      "url": "https://www.bokjiro.go.kr/ssis-tbu/twataa/wlfareInfo/moveTWAT52011M.do?wlfareInfoId=WLF00003192&wlfareInfoReldBztpCd=01",
-      "detail": {
-        "summary": "집합교육 참여가 어려운 다문화 가정에 방문하여 한국어 교육, 부모 교육, 자녀생활 교육을 제공하고 다문화 가족의 정착과 자녀양육을 돕습니다.",
-        "contact": "1577-1366",
-        "department": "성평등가족부"
       }
     },
     {
@@ -3007,6 +3007,21 @@
       }
     },
     {
+      "id": "central-WLF00004639",
+      "servId": "WLF00004639",
+      "title": "전기요금 복지할인",
+      "source": "한국사회보장정보원 중앙부처복지서비스 API",
+      "program_level": "central",
+      "api_record": true,
+      "region": "전국",
+      "url": "https://www.bokjiro.go.kr/ssis-tbu/twataa/wlfareInfo/moveTWAT52011M.do?wlfareInfoId=WLF00004639&wlfareInfoReldBztpCd=01",
+      "detail": {
+        "summary": "기초생활수급자, 차상위계층, 기초연금수급자, 장애인, 국가유공자의 전기요금 부담을 경감하고자 요금감면을 지원합니다.",
+        "contact": "123",
+        "department": "기후에너지환경부"
+      }
+    },
+    {
       "id": "central-WLF00003254",
       "servId": "WLF00003254",
       "title": "청소년방과후아카데미운영지원",
@@ -3784,21 +3799,6 @@
         "summary": "학대피해아동에게 보호와 치료, 양육서비스 등을 제공함으로써 심신의 회복과 원가정 복귀를 지원합니다.",
         "contact": "129",
         "department": "보건복지부"
-      }
-    },
-    {
-      "id": "central-WLF00004639",
-      "servId": "WLF00004639",
-      "title": "전기요금 복지할인",
-      "source": "한국사회보장정보원 중앙부처복지서비스 API",
-      "program_level": "central",
-      "api_record": true,
-      "region": "전국",
-      "url": "https://www.bokjiro.go.kr/ssis-tbu/twataa/wlfareInfo/moveTWAT52011M.do?wlfareInfoId=WLF00004639&wlfareInfoReldBztpCd=01",
-      "detail": {
-        "summary": "기초생활수급자, 차상위계층, 기초연금수급자, 장애인, 국가유공자의 전기요금 부담을 경감하고자 요금감면을 지원합니다.",
-        "contact": "129",
-        "department": "기후에너지환경부"
       }
     },
     {
